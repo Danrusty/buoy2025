@@ -1,0 +1,25 @@
+# --- 核心数据防火墙 ---
+reanalysis/
+processed_data/
+buoy2025_split/
+*.nc
+*.grib
+*.mat
+
+# --- 敏感文档（绝对禁止上传） ---
+*.pdf
+*.docx
+*.doc
+*NSFC*
+*申请书*
+
+# --- 系统与IDE生成文件 ---
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.log
+
+# --- 临时文件 ---
+Untitled.ipynb

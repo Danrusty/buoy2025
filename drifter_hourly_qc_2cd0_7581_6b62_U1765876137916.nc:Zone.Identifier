@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://erddap.aoml.noaa.gov/gdp/erddap/tabledap/drifter_hourly_qc.html
+HostUrl=https://erddap.aoml.noaa.gov/gdp/erddap/tabledap/drifter_hourly_qc.nc?ID%2Ctime%2Clatitude%2Clongitude%2Cve%2Cvn%2Cdrogue_lost_date&time%3E=2020-01-01T00%3A00%3A00Z&time%3C=2022-10-31T00%3A00%3A00Z
