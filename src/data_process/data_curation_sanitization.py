@@ -20,12 +20,12 @@ logging.basicConfig(
     handlers=[
         logging.FileHandler(os.path.join(LOG_DIR, log_filename), encoding='utf-8'),
         logging.StreamHandler()
-    ]·
+    ]
 )
 
 # --- 输入/输出配置 ---
 # 注意：这里改为直接读取 NC 文件
-INPUT_NC_PATH = '../../drifter_hourly_qc_2cd0_7581_6b62.nc' 
+INPUT_NC_PATH = '../../drifter_hourly_qc_2cd0_7581_6b62_U1765876137916.nc' 
 OUTPUT_SANITIZED_PATH = '../../processed_data/trajectories_sanitized.pkl'
 RESULTS_OUTPUT_DIR = '../../results/data_analysis'
 os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
@@ -45,12 +45,10 @@ MIN_TRAJ_LENGTH = 72  # 最小保留长度 (小时)
 
 def decode_ids(id_char_array):
     """
-    将 NetCDF 的二维字符数组 (row, 15) 解码为字符串列表。
-    优化速度：使用 numpy view 或列表推导。
+    将 NetCDF 的二维字符数组 (row, 15) 组合为字符串列表。
+    新版 xarray 会自动将字节解码为字符串, 因此直接 join 字符串即可。
     """
-    # 假设 ID 数组是 byte 类型 (S1)
-    # 转换为 Unicode 字符串并去除空格
-    return ["".join(row.astype(str)).strip() for row in id_char_array]
+    return [''.join(row).strip() for row in id_char_array]
 
 def process_and_sanitize_nc(nc_path, output_path):
     logging.info(f"--- 启动数据清洗流程 (Target: Undrogued Drifters) ---")
@@ -76,38 +74,45 @@ def process_and_sanitize_nc(nc_path, output_path):
     ves = ds['ve'].values
     vns = ds['vn'].values
     
+    # --- 经度标准化 ---
+    # 统一转换为 -180 到 180 范围
+    lons = (lons + 180) % 360 - 180
+    
     # 转换时间边界为 timestamp float
     t_start = (START_DATE - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
     t_end = (END_DATE - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
 
-    # --- 核心过滤逻辑 ---
+    # --- 核心过滤逻辑 (按优先级) ---
     logging.info("执行向量化过滤...")
 
-    # A. 时间范围过滤
-    mask_time = (times >= t_start) & (times <= t_end)
-    
-    # B. Undrogued (无锚系) 筛选
+    # A. Undrogued (无锚系) 筛选 (首要核心步骤)
     # 逻辑: 当前时间 >= 丢失时间 且 丢失时间有效(>0)
-    # 注意: GDP 中未丢失通常为 0 或 1e14 (取决于版本，但通常 time < lost_date 代表有锚)
-    # 我们只想要 time >= lost_date
     mask_undrogued = (times >= drogue_lost_dates) & (drogue_lost_dates > 0)
     
-    # C. 有效速度过滤 (去除 NaN 和 绝对静止/搁浅)
-    # 0.001 m/s 作为搁浅阈值
-    mask_valid_vel = (~np.isnan(ves)) & (~np.isnan(vns)) & \
-                     ((np.abs(ves) > 0.001) | (np.abs(vns) > 0.001))
+    undrogued_count = np.sum(mask_undrogued)
+    logging.info(f"步骤 1: 筛选无锚 (Undrogued) 数据点... {undrogued_count} 行符合要求。")
+
+    # 在无锚数据的基础上进行后续筛选
+    # B. 时间范围过滤
+    mask_time = (times >= t_start) & (times <= t_end)
     
-    # D. 坐标有效性
+    # C. 有效速度过滤 (去除 NaN 并应用速度上限)
+    # 速度上限为 4 m/s
+    speed = np.sqrt(ves**2 + vns**2)
+    mask_valid_vel = (~np.isnan(ves)) & (~np.isnan(vns)) & (speed <= 4.0)
+    
+    # D. 坐标有效性 (经度已标准化)
     mask_valid_geo = (lats >= -90) & (lats <= 90) & (lons >= -180) & (lons <= 180)
 
     # 综合 Mask
-    final_mask = mask_time & mask_undrogued & mask_valid_vel & mask_valid_geo
+    final_mask = mask_undrogued & mask_time & mask_valid_vel & mask_valid_geo
     
     selected_count = np.sum(final_mask)
-    logging.info(f"筛选结果: {selected_count} 行符合要求 (占比 {selected_count/total_rows:.2%})")
+    logging.info(f"筛选结果: 最终 {selected_count} 行符合所有要求 (原始占比 {selected_count/total_rows:.2%})")
     
     if selected_count == 0:
         logging.error("没有符合条件的数据！请检查筛选逻辑或源数据。")
+        ds.close()
         return
 
     # 3. 构建 DataFrame
