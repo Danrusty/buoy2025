@@ -9,119 +9,117 @@ from tqdm import tqdm
 
 def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir):
     """
-    Matches ERA5 reanalysis wind data with buoy trajectories that already contain
-    HYCOM current data. It then performs crucial feature engineering on the wind data.
+    Matches ERA5 reanalysis wind data with buoy trajectories using serial processing.
 
-    This function builds upon the previous step and performs the following tasks:
-    1.  Loads the buoy trajectories that have been matched with HYCOM currents.
-    2.  Dynamically determines the required time range from the buoy data.
-    3.  Loads only the relevant time slice from the ERA5 wind data files.
-    4.  For each point in each trajectory, it performs spatio-temporal interpolation
-        on the ERA5 dataset to find the corresponding 10-meter wind components (u10, v10).
-    5.  ***KEY FEATURE ENGINEERING***:
-        a. Calculates the wind speed (magnitude).
-        b. Encodes the periodic wind direction into two continuous features: sine and cosine components.
-    6.  Saves the final, fully enriched trajectories to a new pickle file.
+    For each trajectory point, performs spatio-temporal interpolation on the ERA5 dataset
+    to find the corresponding 10-meter wind components (u10, v10).
+
+    Feature engineering:
+    - era5_u10, era5_v10: 10-meter wind components
+    - era5_wind_speed: Wind speed magnitude
+    - era5_wind_dir_sin, era5_wind_dir_cos: Periodic wind direction encoding
 
     Args:
-        processed_buoy_file_with_currents (str): Path to the 'trajectories_with_currents.pkl' file.
-        era5_dir (str): Directory containing the yearly ERA5 NetCDF/GRIB files.
-        output_dir (str): Directory to save the final processed file.
+        processed_buoy_file_with_currents (str): Path to trajectories with CFS current data
+        era5_dir (str): Directory containing ERA5 wind NetCDF files
+        output_dir (str): Directory to save output
     """
-    print("--- 开始匹配ERA5风场数据并进行特征工程 ---")
+    print("--- 开始匹配ERA5风场数据 (串行处理模式) ---")
 
-    # --- 1. 加载已匹配海流的浮标轨迹 ---
-    print(f"步骤 1/7: 加载浮标数据从: {processed_buoy_file_with_currents}")
+    # --- 步骤 1/4: 加载浮标轨迹 ---
+    print(f"步骤 1/4: 加载浮标数据从: {processed_buoy_file_with_currents}")
     try:
         with open(processed_buoy_file_with_currents, 'rb') as f:
             trajectories_with_currents = pickle.load(f)
     except FileNotFoundError:
-        print(f"错误: 文件未找到 at '{processed_buoy_file_with_currents}'")
+        print(f"错误: 浮标数据文件未找到 at '{processed_buoy_file_with_currents}'")
         return
     if not trajectories_with_currents:
         print("错误: 加载的浮标轨迹列表为空，无法继续。")
         return
-    print(f"加载了 {len(trajectories_with_currents)} 段已匹配海流的轨迹。")
 
-    # --- 2. 从浮标数据中动态获取所需时间范围 ---
-    print("步骤 2/7: 动态计算所需的时间范围...")
-    all_times = pd.concat([traj['time'] for traj in trajectories_with_currents])
-    min_time = all_times.min() - pd.Timedelta(days=1)  # Add a buffer for interpolation
-    max_time = all_times.max() + pd.Timedelta(days=1)  # Add a buffer for interpolation
-    print(f"所需数据时间范围: 从 {min_time.strftime('%Y-%m-%d')} 到 {max_time.strftime('%Y-%m-%d')}")
+    print(f"加载了 {len(trajectories_with_currents)} 段连续轨迹。")
 
-    # --- 3. 加载ERA5风场数据 (仅加载所需时间段) ---
-    # Find either .grib or .nc files
-    era5_files = sorted(glob.glob(os.path.join(era5_dir, '*.grib')))
-    if not era5_files:
-        era5_files = sorted(glob.glob(os.path.join(era5_dir, '*.nc')))
-
-    if not era5_files:
-        print(f"错误: 在目录 '{era5_dir}' 中未找到ERA5 .grib 或 .nc 文件。")
+    # --- 步骤 2/4: 检查ERA5数据 ---
+    print("步骤 2/4: 检查ERA5风场数据...")
+    era5_all_files = sorted(glob.glob(os.path.join(era5_dir, '*.nc')))
+    if not era5_all_files:
+        print(f"错误: ERA5数据目录 '{era5_dir}' 中未找到 .nc 文件。")
         return
+    print(f"找到 {len(era5_all_files)} 个ERA5风场文件。")
 
-    print(f"步骤 3/7: 使用 xarray.open_mfdataset 加载ERA5数据...")
-    print(f"找到 {len(era5_files)} 个ERA5文件。将仅加载时间范围内的数据。")
-
-    def select_time_range(ds):
-        return ds.sel(time=slice(min_time, max_time))
-
-    try:
-        # Let xarray automatically choose the engine. It will pick 'cfgrib' for .grib
-        # and 'netcdf4' for .nc, if they are installed.
-        ds_era5_raw = xr.open_mfdataset(
-            era5_files,
-            combine='by_coords',
-            preprocess=select_time_range
-        )
-    except ValueError as e:
-        if "cfgrib" in str(e):  # A more general check for cfgrib related errors
-            print("\n" + "=" * 80)
-            print("致命错误: 使用 'cfgrib' 引擎读取GRIB文件失败。")
-            print("这通常是由于环境配置问题导致的。")
-            print("请尝试以下解决方案:")
-            print("1. (推荐) 创建一个纯净的Conda环境并重新安装所有库。")
-            print("   命令: conda create --name grib_env python=3.9 -y")
-            print("         conda activate grib_env")
-            print("         conda install -c conda-forge xarray pandas cfgrib netcdf4")
-            print("2. (备选) 将您的GRIB文件手动转换为NetCDF格式后再运行此脚本。")
-            print("   命令: grib_to_netcdf -o <output_file>.nc <input_file>.grib")
-            print("=" * 80 + "\n")
-            return
-        else:
-            print(f"读取文件时发生未预料的ValueError: {e}")
-            raise
-    except Exception as e:
-        print(f"读取数据文件时发生未知错误: {e}")
-        return
-
-    # 重命名变量以便于访问
-    rename_dict = {
-        '10u': 'u10',
-        '10v': 'v10',
-        'u10': 'u10',
-        'v10': 'v10'
-    }
-    actual_rename_dict = {k: v for k, v in rename_dict.items() if k in ds_era5_raw.variables}
-    ds_era5 = ds_era5_raw.rename(actual_rename_dict)
-
-    if 'lon' in ds_era5.coords and ds_era5.lon.min() < 0:
-        ds_era5['lon'] = (ds_era5['lon'] + 360) % 360
-    ds_era5 = ds_era5.sortby('lon')
-
-    print("ERA5 数据集在指定时间范围内加载并预处理完成。")
-    print(f"加载后的数据集时间范围: {ds_era5.time.min().values} to {ds_era5.time.max().values}")
-
-    # --- 4, 5, 6. 迭代、插值与特征工程 ---
-    print("步骤 4-6/7: 迭代所有轨迹，进行插值和风场特征工程...")
+    # --- 步骤 3/4: 串行处理各轨迹 ---
+    print("步骤 3/4: 逐条处理轨迹并进行时空插值...")
     fully_enriched_trajectories = []
-    for traj_df in tqdm(trajectories_with_currents, desc="匹配风场数据中"):
+
+    for traj_df in tqdm(trajectories_with_currents, desc="处理轨迹中"):
+        traj_df = traj_df.copy()
+
+        # Determine which months this trajectory spans
+        time_min = traj_df['time'].min()
+        time_max = traj_df['time'].max()
+
+        # Filter files to only those covering the trajectory's time range
+        era5_files = []
+        for f in era5_all_files:
+            basename = os.path.basename(f)
+            if basename.startswith('wind_') and basename.endswith('.nc'):
+                try:
+                    file_yyyymm = basename.split('_')[1][:6]  # Extract YYYYMM
+                    file_date = pd.Timestamp(year=int(file_yyyymm[:4]), month=int(file_yyyymm[4:6]), day=1)
+                    # Include file if it overlaps with trajectory's time range (with buffer)
+                    if file_date <= time_max + pd.Timedelta(days=1) and \
+                       file_date + pd.DateOffset(months=1) > time_min - pd.Timedelta(days=1):
+                        era5_files.append(f)
+                except (ValueError, IndexError):
+                    continue
+
+        if not era5_files:
+            continue
+
+        try:
+            # Load and concatenate wind files for the trajectory's time range
+            def select_time_range(ds):
+                selected = ds.sel(time=slice(time_min - pd.Timedelta(days=1), time_max + pd.Timedelta(days=1)))
+                if len(selected.time) == 0:
+                    return None
+                return selected
+
+            datasets = []
+            for f in era5_files:
+                try:
+                    ds = xr.open_dataset(f)
+                    ds_sel = select_time_range(ds)
+                    if ds_sel is not None:
+                        datasets.append(ds_sel)
+                    ds.close()
+                except Exception:
+                    continue
+
+            if not datasets:
+                continue
+
+            ds_era5_raw = xr.concat(datasets, dim='time')
+
+        except Exception:
+            continue
+
+        # ERA5 coordinates are already named 'lon' and 'lat'
+        ds_era5 = ds_era5_raw
+
+        # Standardize longitude to 0-360 range
+        if ds_era5.lon.min() < 0:
+            ds_era5['lon'] = (ds_era5['lon'] + 360) % 360
+        ds_era5 = ds_era5.sortby('lon')
+
+        # Prepare interpolation coordinate arrays
         lats = xr.DataArray(traj_df['latitude'], dims="points")
         lons = xr.DataArray(traj_df['longitude'], dims="points")
         times = xr.DataArray(traj_df['time'], dims="points")
         lons_360 = (lons + 360) % 360
 
         try:
+            # Spatio-temporal interpolation on ERA5 dataset
             interpolated_wind = ds_era5[['u10', 'v10']].interp(
                 lat=lats,
                 lon=lons_360,
@@ -134,10 +132,11 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir):
             traj_df['era5_u10'] = u10
             traj_df['era5_v10'] = v10
 
-            # --- 核心特征工程 ---
+            # Feature engineering: wind speed (magnitude) and direction encoding
             wind_speed = np.sqrt(u10 ** 2 + v10 ** 2)
             traj_df['era5_wind_speed'] = wind_speed
 
+            # Encode periodic wind direction into sine and cosine components
             wind_angle_rad = np.arctan2(v10, u10)
             traj_df['era5_wind_dir_sin'] = np.sin(wind_angle_rad)
             traj_df['era5_wind_dir_cos'] = np.cos(wind_angle_rad)
@@ -147,27 +146,34 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir):
             if len(traj_df) > 1:
                 fully_enriched_trajectories.append(traj_df)
 
-        except Exception as e:
-            print(f"\n警告: 处理某段轨迹时发生插值错误: {e}")
-            print("该段轨迹将被跳过。")
-            continue
+        except Exception:
+            pass
 
-    print(f"处理完成。剩余 {len(fully_enriched_trajectories)} 段轨迹拥有匹配的风场数据。")
+        finally:
+            # Cleanup
+            try:
+                ds_era5.close()
+                ds_era5_raw.close()
+            except Exception:
+                pass
+            del ds_era5_raw, ds_era5, lats, lons, times, lons_360
 
-    # --- 7. 保存最终结果 ---
+    print(f"处理完成。共 {len(fully_enriched_trajectories)} 段轨迹获得了风场数据。")
+
+    # --- 步骤 4/4: 保存结果 ---
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     output_filename = os.path.join(output_dir, 'trajectories_with_currents_and_wind.pkl')
-    print(f"\n步骤 7/7: 将包含所有特征的最终结果保存到: {output_filename}")
+    print(f"\n步骤 4/4: 将富含风场数据的结果保存到: {output_filename}")
     with open(output_filename, 'wb') as f:
         pickle.dump(fully_enriched_trajectories, f)
 
-    print("--- ERA5风场数据匹配与特征工程全部完成！---")
+    print("--- ERA5风场数据匹配完成！---")
 
     if fully_enriched_trajectories:
         print(f"\n最终产出是一个Python列表，其中包含 {len(fully_enriched_trajectories)} 个pandas.DataFrame。")
-        print("每个DataFrame现在都包含了浮标、HYCOM海流、ERA5风场以及风场衍生特征。")
+        print("每个DataFrame现在都包含了浮标、CFS海流、ERA5风场以及风场衍生特征。")
         print("\n第一个轨迹的头部数据示例:")
         print(fully_enriched_trajectories[0].head())
         print("\n查看新增的列名:")
@@ -178,15 +184,14 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir):
 
 if __name__ == '__main__':
     # --- 用户配置 ---
-    PROCESSED_BUOY_FILE_WITH_CURRENTS = '../processed_data/trajectories_with_currents.pkl'
-    ERA5_DATA_DIRECTORY = '../reanalysis/wind'
-    OUTPUT_DIRECTORY = '../processed_data'
+    PROCESSED_BUOY_FILE_WITH_CURRENTS = '../../processed_data/trajectories_with_cfsv2_currents.pkl'
+    ERA5_DATA_DIRECTORY = '../../reanalysis/wind'
+    OUTPUT_DIRECTORY = '../../processed_data'
 
     # --- 运行脚本 ---
     if not os.path.exists(PROCESSED_BUOY_FILE_WITH_CURRENTS):
-        print(f"错误: 输入文件 '{PROCESSED_BUOY_FILE_WITH_CURRENTS}' 不存在。请先运行海流匹配脚本。")
+        print(f"错误: 输入的浮标文件 '{PROCESSED_BUOY_FILE_WITH_CURRENTS}' 不存在。请先运行CFS流场匹配脚本。")
     elif not os.path.exists(ERA5_DATA_DIRECTORY):
         print(f"错误: ERA5数据目录 '{ERA5_DATA_DIRECTORY}' 不存在。请检查路径。")
     else:
         match_era5_wind(PROCESSED_BUOY_FILE_WITH_CURRENTS, ERA5_DATA_DIRECTORY, OUTPUT_DIRECTORY)
-
