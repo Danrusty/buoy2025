@@ -251,3 +251,44 @@ for var in wave_vars:
 | 纬度降序（90→-90） | `sel(lat=slice(south,north))` 返回空集 | `sortby('lat')` 确保升序后再裁剪 |
 
 **教训**：`isel` 去重后不能仅靠 `isel`，必须追加 `assign_coords(time=('time', ds.time.values))` 刷新内部索引，否则 xarray 底层的 pandas Index 不会更新，`sel(slice())` 仍会失败。
+
+---
+
+### 追加：Coast-fill 后仍有大量失败——datetime64 精度不匹配（最终根本原因）
+
+**现象**：coast-fill 修复后用 50 条轨迹测试，仍有多条赤道太平洋开阔海洋轨迹（如所罗门群岛附近 lat=7°N、lon=167°E）全为 NaN，显然不是海冰或峡湾问题。
+
+**诊断日志中的关键线索**：
+```
+ERA5时间dtype: datetime64[us]   轨迹时间dtype: datetime64[ns]
+ERA5时间int64[0]: 1663545600000000      ← 微秒精度，约 1.66e15
+轨迹时间int64[0]: 1663632000000000000   ← 纳秒精度，约 1.66e18
+两者比值恰好为 1000
+```
+
+**根本原因**：新版 CDS API（约 2023 年后下载）的 ERA5 文件，时间维度编码为 `datetime64[us]`（微秒），而浮标轨迹数据（pandas `datetime64[ns]`）是纳秒精度。`xr.interp` 在执行三维线性插值时，将 `datetime64` 直接取底层整数值转为 `float64`：
+- ERA5 时间轴（us）：float64 约为 1.66e15
+- 插值坐标（ns）：float64 约为 1.66e18
+
+插值坐标在 ERA5 时间轴看来**超出范围 1000 倍**，xarray 不做外插，返回全 NaN。**这是 ~53% 失败的真正主因**，coast-fill、ocean-masked 等方案均对此无效，因为数据在 load 后是正常的，问题在坐标轴的单位不兼容。
+
+**修复**（在文件加载时统一转换）：
+```python
+if ds.time.dtype != np.dtype('datetime64[ns]'):
+    ds['time'] = ds.time.values.astype('datetime64[ns]')
+```
+同时在 `match_era5_wind.py` 中加入相同修复（防御性）。
+
+**修复后测试结果**（50 条最短轨迹）：
+| 状态 | coast-fill 后但 datetime 未修 | datetime 修复后 |
+|------|------------------------------|----------------|
+| 成功 | 12/15 (80%) | **46/50 (92%)** |
+| 全 NaN | 3/15 | 4/50 |
+
+**残余 4 条失败（物理原因）**：
+- 南极海冰区（-70°S）：WAM 模型海冰格点无数据
+- 格陵兰峡湾（68°N, -54°E）：WAM 模型域外
+- 哈德逊湾/巴芬岛（62°N, -70°E）：内陆海，WAM 不覆盖
+- 跨 0°/360° 经线轨迹（-62°S, -0.93°~+0.46°）：空间裁剪拼出非单调经度轴，插值失败（低频边缘案例，暂保留）
+
+**技术背后的规律**：xarray 的 `interp` 对 `datetime64` 的处理依赖底层 numpy 整数值，不会自动统一单位。不同 numpy 版本或 xarray 版本中，`datetime64[ns]`、`datetime64[us]`、`datetime64[s]` 之间的相互转换需手动管理。在任何涉及跨数据源时间插值的场景，都应在插值前统一时间精度。

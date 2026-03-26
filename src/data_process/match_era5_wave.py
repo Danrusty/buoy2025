@@ -137,6 +137,14 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
                         datetime_index = base_dates + pd.to_timedelta(hours, unit='h')
                         ds['time'] = datetime_index.values
 
+                    # 统一时间精度为 datetime64[ns]（与轨迹数据一致）。
+                    # 新版 CDS API 下载的 ERA5 文件时间编码为 datetime64[us]（微秒），
+                    # 而轨迹数据为 datetime64[ns]（纳秒）。xr.interp 将 datetime64 转为
+                    # float64 时直接取底层整数值：us 量级约 1.66e15，ns 量级约 1.66e18，
+                    # 两者相差 1000 倍，导致插值点完全超出 ERA5 时间轴范围，全部返回 NaN。
+                    if ds.time.dtype != np.dtype('datetime64[ns]'):
+                        ds['time'] = ds.time.values.astype('datetime64[ns]')
+
                     # === Step 2: Standardize coordinates on single file (memory-efficient) ===
                     # Rename coordinates if needed
                     if 'latitude' in ds.dims and 'lat' not in ds.dims:
@@ -418,7 +426,7 @@ if __name__ == '__main__':
 
     # --- 采样模式配置 ---
     SAMPLE_MODE = False          # 设置为 True 进行快速验证，False 进行完整处理
-    SAMPLE_SIZE = 15             # 采样轨迹数量（最短的N条轨迹）
+    SAMPLE_SIZE = 50             # 采样轨迹数量（最短的N条轨迹）
 
     # --- 运行脚本 ---
     if not os.path.exists(PROCESSED_BUOY_FILE_WITH_WIND):

@@ -128,6 +128,12 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
                     if float(ds.lat[0]) > float(ds.lat[-1]):
                         ds = ds.sortby('lat')
 
+                    # 统一时间精度为 datetime64[ns]（与轨迹数据一致）。
+                    # 新版 CDS API 下载的文件时间可能为 datetime64[us]，xr.interp 时
+                    # 两者 float64 数值差 1000 倍，导致插值点超出范围全为 NaN。
+                    if ds.time.dtype != np.dtype('datetime64[ns]'):
+                        ds['time'] = ds.time.values.astype('datetime64[ns]')
+
                     # === Step 2: Remove duplicate timestamps BEFORE slicing ===
                     # 注意：仅用 isel 去重后，xarray 内部的 pandas Index 不会自动重建，
                     # 需要 assign_coords 强制刷新，否则 .sel(time=slice()) 仍会报
