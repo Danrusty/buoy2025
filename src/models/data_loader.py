@@ -18,8 +18,6 @@ data_loader.py
 import os
 import pickle
 import logging
-from datetime import datetime
-
 import gc
 
 import numpy as np
@@ -62,6 +60,11 @@ OBS_COLS = ['ve', 'vn']
 RANDOM_SEED = 42
 
 
+# 模块级 logger：不绑定任何 handler，由调用方（train_mlp.py）统一配置
+# 独立运行时由 __main__ 的 basicConfig 接管
+logger = logging.getLogger(__name__)
+
+
 # ==============================================================================
 # 内存监控辅助
 # ==============================================================================
@@ -72,28 +75,6 @@ def _mem_mb() -> float:
         return psutil.Process().memory_info().rss / 1024 ** 2
     except ImportError:
         return float('nan')
-
-
-# ==============================================================================
-# 日志配置（避免重复添加 handler）
-# ==============================================================================
-def _setup_logger(name: str = 'data_loader') -> logging.Logger:
-    log_path = os.path.join(
-        LOG_DIR,
-        f"data_loader_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-    )
-    logger = logging.getLogger(name)
-    if logger.handlers:
-        return logger
-    logger.setLevel(logging.INFO)
-    fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    fh = logging.FileHandler(log_path, encoding='utf-8')
-    fh.setFormatter(fmt)
-    sh = logging.StreamHandler()
-    sh.setFormatter(fmt)
-    logger.addHandler(fh)
-    logger.addHandler(sh)
-    return logger
 
 
 # ==============================================================================
@@ -125,7 +106,6 @@ def load_and_split_data(
         x_scaler,                                 # 已 fit 的 StandardScaler
         feature_cols,                             # 特征列名列表
     """
-    logger = _setup_logger()
     mode_tag = "【采样模式】" if sample_mode else "【完整模式】"
     logger.info(f"=== 开始数据加载 {mode_tag} ===")
 
@@ -279,8 +259,13 @@ def load_and_split_data(
 # 独立运行测试
 # ==============================================================================
 if __name__ == '__main__':
-    # 采样模式快速验证（只加载 200 条轨迹）
     import sys
+    # 独立运行时配置简单的控制台日志
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(message)s',
+        datefmt='%H:%M:%S',
+    )
     sample = '--full' not in sys.argv
 
     splits = load_and_split_data(sample_mode=sample, sample_size=200)

@@ -26,7 +26,9 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error
 
-from data_loader import load_and_split_data, _setup_logger
+from data_loader import load_and_split_data
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -44,7 +46,6 @@ def run_linear_baseline(splits: dict) -> dict:
     -------
     results : dict，包含 r2_u, r2_v, rmse, wdf_estimate, models
     """
-    logger = _setup_logger('baseline')
     logger.info("=== 开始线性回归 WDF 基准 ===")
 
     X_tr_w  = splits['X_train_wind']   # shape (N_train, 2)，[u10, v10]
@@ -148,11 +149,12 @@ def run_linear_baseline(splits: dict) -> dict:
 # 独立运行入口
 # ==============================================================================
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(message)s',
+        datefmt='%H:%M:%S',
+    )
     sample = '--full' not in sys.argv
-
-    print(f"\n{'='*55}")
-    print(f"  线性回归 WDF 基准  ({'采样模式 200 条轨迹' if sample else '完整数据集'})")
-    print(f"{'='*55}\n")
 
     splits  = load_and_split_data(sample_mode=sample, sample_size=200)
     results = run_linear_baseline(splits)
