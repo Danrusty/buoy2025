@@ -53,12 +53,10 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # 超参数
 # ==============================================================================
 BATCH_SIZE    = 8192
-EPOCHS        = 200    # 给模型足够的收敛空间
-PATIENCE      = 20     # 曲线仍在上升时 5 太激进，改为 20
-LR            = 1e-3
-LR_FACTOR     = 0.5    # ReduceLROnPlateau 衰减因子
-LR_PATIENCE   = 8      # 避免 LR 过早衰减（之前 3 导致 epoch17 就腰斩）
-LR_MIN        = 1e-6   # 允许更低 LR 继续精细收敛
+EPOCHS        = 200
+PATIENCE      = 20
+LR            = 3e-4   # 大网络建议 3e-4；1e-4 对 400K 参数网络收敛太慢
+LR_MIN        = 1e-6
 RANDOM_SEED   = 42
 
 torch.manual_seed(RANDOM_SEED)
@@ -81,24 +79,34 @@ def _get_device() -> torch.device:
 # ==============================================================================
 class ResidualMLP(nn.Module):
     """
-    带 BatchNorm 的多层感知机，预测漂流残差速度。
+    大容量 MLP（~430K 参数），带 BatchNorm + Dropout。
 
-    Input(9) -> [Linear(256)->BN->ReLU] -> [Linear(128)->BN->ReLU]
-             -> [Linear(64)->BN->ReLU]  -> Linear(2)
+    Input(9) -> [512->BN->ReLU->Drop] -> [512->BN->ReLU->Drop]
+             -> [256->BN->ReLU->Drop] -> [128->BN->ReLU] -> Linear(2)
+
+    参数量：~430K，与 11M 训练样本匹配（样本/参数 ≈ 25，安全范围内）。
+    Dropout(0.1) 防止大网络过拟合。
     """
-    def __init__(self, input_size: int = 9, output_size: int = 2):
+    def __init__(self, input_size: int = 9, output_size: int = 2,
+                 dropout: float = 0.1):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_size, 256),
+            nn.Linear(input_size, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Linear(64, output_size),
+            nn.Linear(128, output_size),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -182,9 +190,12 @@ def train(splits: dict) -> dict:
 
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=LR_FACTOR,
-        patience=LR_PATIENCE, min_lr=LR_MIN, verbose=False
+    # CosineAnnealingWarmRestarts：
+    #   T_0=60  → 第一个余弦周期 60 epoch（LR 从 3e-4 降到 1e-6）
+    #   T_mult=2 → 第二个周期 120 epoch（总计 180 epoch 内完成两次重启）
+    #   eta_min  → LR 下限，避免降到 0 导致梯度停滞（旧 CosineAnnealingLR 的 bug）
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=60, T_mult=2, eta_min=LR_MIN
     )
 
     best_val_loss  = float('inf')
@@ -230,8 +241,8 @@ def train(splits: dict) -> dict:
             f"lr={current_lr:.2e}"
         )
 
-        # 学习率调度（监控 val_loss）
-        scheduler.step(val_loss)
+        # CosineAnnealingWarmRestarts 按 epoch 步进（不需要监控 val_loss）
+        scheduler.step(epoch)
 
         # 早停：同时监控 val_loss 和 val_r2，任一改善即重置计数器
         # （val_r2 更能反映真实泛化能力，对 loss 的微小数值波动更鲁棒）
