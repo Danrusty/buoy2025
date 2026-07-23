@@ -23,3 +23,6 @@ __pycache__/
 
 # --- 临时文件 ---
 Untitled.ipynb
+
+# --- 本地交接与会话上下文（不纳入版本控制） ---
+handoff_context/
