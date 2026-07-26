@@ -5,8 +5,10 @@ REM 在 VS2022 Developer Command Prompt (x64) 中运行
 REM 将 onnx_wrapper.cpp 编译为 wdf_onnx.dll + wdf_onnx.lib
 REM ==========================================================================
 
-REM --- 配置 ONNX Runtime 路径（按实际解压位置修改） ---
-set ORT_DIR=D:\OilspillModel\OilSpillModel\onnxruntime-training-win-x64-1.17.1
+REM --- 配置 ONNX Runtime 路径（可先在命令行 set ORT_DIR=... 覆盖） ---
+if not defined ORT_DIR (
+    set ORT_DIR=D:\OilspillModel\OilSpillModel\onnxruntime-training-win-x64-1.17.1
+)
 
 REM --- 检查 ---
 if not exist "%ORT_DIR%\include\onnxruntime_cxx_api.h" (
@@ -28,7 +30,7 @@ echo === 编译 onnx_wrapper.cpp → wdf_onnx.dll ===
 echo     ORT_DIR = %ORT_DIR%
 echo.
 
-cl /LD /EHsc /O2 /MD ^
+cl /LD /EHsc /O2 /MD /utf-8 ^
    /I"%ORT_DIR%\include" ^
    onnx_wrapper.cpp ^
    /link /LIBPATH:"%ORT_DIR%\lib" onnxruntime.lib ^

@@ -2,7 +2,7 @@
 !! ==============================================================================
 !! 端到端验证：Fortran → C++ → ONNX Runtime 推理链路
 !!
-!! 构造 3 组与 Python export_onnx.py verify() 相同的输入，
+!! 构造 3 组与 Python export_onnx.py REFERENCE_INPUTS 相同的输入，
 !! 对比 Fortran 侧输出与 Python 参考输出是否一致。
 !!
 !! 编译方式（VS2022 Developer Command Prompt + Intel Fortran）：
@@ -17,29 +17,36 @@ program test_wdf_onnx
 
     integer, parameter :: N = 3       ! 测试粒子数
     integer, parameter :: NF = 9      ! 特征数
+    real(c_float), parameter :: TOL = 1.0e-4_c_float
+    real(c_float), parameter :: EXPECTED(2, N) = reshape((/ &
+         0.06901634_c_float,  0.01871330_c_float, &
+        -0.06357081_c_float,  0.03777863_c_float, &
+         0.01102608_c_float, -0.09855364_c_float  &
+    /), (/ 2, N /))
     real(c_float) :: features(NF, N)  ! (9, 3) — 详见 wdf_model_mod 注释
     real(c_float) :: drift_uv(2, N)   ! (2, 3)
+    real(c_float) :: max_error
     logical :: ok
     integer :: i
 
     ! ------------------------------------------------------------------
-    ! Python export_onnx.py verify() 使用 np.random.seed(42) 生成的
-    ! 前 3 组 × 9 特征的值（np.random.randn(100,9)*5.0 的前 3 行）
+    ! 固定测试向量使用合理的物理量级，且风向编码与 u/v 自洽。
     ! ------------------------------------------------------------------
-    ! 粒子 1 (np.random.seed(42), randn(3,9)*5.0, row 0)
-    features(1,1) =  2.4836; features(2,1) = -0.6913; features(3,1) =  3.2384
-    features(4,1) =  7.6151; features(5,1) = -1.1708; features(6,1) = -1.1707
-    features(7,1) =  7.8961; features(8,1) =  3.8372; features(9,1) = -2.3474
+    ! 粒子 1
+    features(1,1) =  5.0; features(2,1) =  0.0; features(3,1) =  5.0
+    features(4,1) =  0.0; features(5,1) =  1.0; features(6,1) =  1.5
+    features(7,1) =  7.0; features(8,1) =  0.0; features(9,1) =  1.0
 
-    ! 粒子 2 (row 1)
-    features(1,2) =  2.7128; features(2,2) = -2.3171; features(3,2) = -2.3286
-    features(4,2) =  1.2098; features(5,2) = -9.5664; features(6,2) = -8.6246
-    features(7,2) = -2.8114; features(8,2) = -5.0642; features(9,2) =  1.5712
+    ! 粒子 2
+    features(1,2) = -4.0; features(2,2) =  3.0; features(3,2) =  5.0
+    features(4,2) =  0.6; features(5,2) = -0.8; features(6,2) =  2.5
+    features(7,2) =  9.0; features(8,2) =  1.0; features(9,2) =  0.0
 
-    ! 粒子 3 (row 2)
-    features(1,3) = -4.5401; features(2,3) = -7.0615; features(3,3) =  7.3282
-    features(4,3) = -1.1289; features(5,3) =  0.3376; features(6,3) = -7.1237
-    features(7,3) = -2.7219; features(8,3) =  0.5546; features(9,3) = -5.7550
+    ! 粒子 3
+    features(1,3) =  0.0; features(2,3) = -8.0; features(3,3) =  8.0
+    features(4,3) = -1.0; features(5,3) =  0.0; features(6,3) =  4.0
+    features(7,3) = 12.0
+    features(8,3) = -0.70710677; features(9,3) = 0.70710677
 
     ! ------------------------------------------------------------------
     ! 初始化模型（路径需根据实际调整）
@@ -68,11 +75,18 @@ program test_wdf_onnx
     end do
     print *, ""
     print *, "Python reference:"
-    print *, "  #1   -0.438177    +0.068159"
-    print *, "  #2   -0.288603    +0.472317"
-    print *, "  #3   -0.737593    +0.216485"
+    print *, "  #1   +0.069016    +0.018713"
+    print *, "  #2   -0.063571    +0.037779"
+    print *, "  #3   +0.011026    -0.098554"
     print *, ""
-    print *, "If diff < 1e-4, verification PASSED."
+    max_error = maxval(abs(drift_uv - EXPECTED))
+    write(*, '(A, ES12.4)') "Maximum absolute error: ", max_error
+    if (max_error >= TOL) then
+        print *, "Verification FAILED."
+        call wdf_cleanup()
+        stop 2
+    end if
+    print *, "Verification PASSED."
 
     ! ------------------------------------------------------------------
     ! 清理

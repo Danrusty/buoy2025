@@ -1,271 +1,429 @@
-# coding: utf-8
 """
-export_onnx.py
-==============
-WDF_DL_Param 项目 Phase 3 - 任务 A
+将指定 original_ID MLP 导出为带内部标准化的 ONNX 候选包。
 
-功能：
-  1. 加载已训练的 PyTorch MLP 模型 (best_mlp.pth)。
-  2. 加载用于输入的 scikit-learn StandardScaler (x_scaler.pkl)。
-  3. 创建一个包含 "数据标准化" 和 "MLP 推理" 的端到端部署模型。
-     - 将 StandardScaler 的均值 (mean) 和标准差 (scale) "烘焙" 为模型内部的
-       torch.Tensor 常量，消除对 scikit-learn 的运行时依赖。
-  4. 将该部署模型导出为 ONNX 格式 (wdf_drifter.onnx)，并支持动态 batch size。
-
-该脚本为 Fortran/C++ 业务化部署提供模型中间表示（ONNX）。
-
-运行方式：
-  cd src/models
-  python export_onnx.py
+发布包包含 ONNX、接口元数据、固定测试向量、Python 预期输出、Windows
+wrapper 源码和 SHA256 校验值。Windows/Fortran 端只输入原始物理量，
+不能再次执行 StandardScaler。
 """
 
-import os
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import shutil
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import joblib
+import numpy as np
+import onnx
+import onnxruntime as ort
 import torch
 import torch.nn as nn
 
-# ==============================================================================
-# 1. 路径配置 (与 train_mlp.py 保持一致)
-# ==============================================================================
-# 假设脚本在 src/models/ 目录下运行
-TRAINED_MODELS_DIR = '../../trained_models'
-ONNX_OUTPUT_DIR = '../../trained_models'  # ONNX 模型也存放在此
-os.makedirs(ONNX_OUTPUT_DIR, exist_ok=True)
-
-MODEL_PATH = os.path.join(TRAINED_MODELS_DIR, 'best_mlp.pth')
-SCALER_PATH = os.path.join(TRAINED_MODELS_DIR, 'x_scaler.pkl')
-ONNX_PATH = os.path.join(ONNX_OUTPUT_DIR, 'wdf_drifter.onnx')
+from data_loader import FEATURE_COLS, PROJECT_ROOT, TARGET_COLS
+from train_mlp import ResidualMLP
 
 
-# ==============================================================================
-# 2. 模型定义 (必须与训练时完全一致)
-# ==============================================================================
-class ResidualMLP(nn.Module):
-    """
-    该定义拷贝自 train_mlp.py，用于加载 best_mlp.pth 的 state_dict。
-    """
-    def __init__(self, input_size: int = 9, output_size: int = 2,
-                 dropout: float = 0.1):
-        super().__init__()
-        # 在导出 ONNX 时，BatchNorm 和 Dropout 的行为与训练时不同。
-        # .eval() 模式会自动处理，无需手动修改。
-        self.net = nn.Sequential(
-            nn.Linear(input_size, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, output_size),
-        )
+MODEL_VERSION = "wdf_full9_ablation_reference_v1"
+DEFAULT_RUN_NAME = "ablation_study/full_9"
+OPSET_VERSION = 12
+INPUT_NAME = "input"
+OUTPUT_NAME = "output"
+MAX_ALLOWED_DIFF = 1e-5
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+FEATURE_UNITS = [
+    "m/s",
+    "m/s",
+    "m/s",
+    "dimensionless",
+    "dimensionless",
+    "m",
+    "s",
+    "dimensionless",
+    "dimensionless",
+]
+TARGET_UNITS = ["m/s", "m/s"]
+
+# 三组有限、物理量级合理且方向编码自洽的固定测试向量。
+REFERENCE_INPUTS = np.asarray(
+    [
+        [5.0, 0.0, 5.0, 0.0, 1.0, 1.5, 7.0, 0.0, 1.0],
+        [-4.0, 3.0, 5.0, 0.6, -0.8, 2.5, 9.0, 1.0, 0.0],
+        [0.0, -8.0, 8.0, -1.0, 0.0, 4.0, 12.0, -0.70710677, 0.70710677],
+    ],
+    dtype=np.float32,
+)
+
+WRAPPER_FILES = [
+    "onnx_wrapper.cpp",
+    "onnx_wrapper.h",
+    "wdf_model_mod.f90",
+    "test_wdf_onnx.f90",
+    "build_wrapper.bat",
+]
 
 
-# ==============================================================================
-# 3. 创建包含预处理的部署模型 (关键步骤)
-# ==============================================================================
 class DeploymentNet(nn.Module):
-    """
-    一个包装模型，集成了 "标准化预处理" 和 "MLP推理"。
-    这是最终要导出为 ONNX 的模型。
-    """
-    def __init__(self, trained_mlp: nn.Module, scaler_mean: torch.Tensor, scaler_scale: torch.Tensor):
-        """
-        参数:
-          - trained_mlp: 已经加载了权重和偏差的原始 MLP 模型实例。
-          - scaler_mean: 标准化器的均值 (1D Tensor, shape [num_features])。
-          - scaler_scale: 标准化器的标准差 (1D Tensor, shape [num_features])。
-        """
+    """把训练集 StandardScaler 固化到 MLP 计算图内部。"""
+
+    def __init__(
+        self,
+        trained_mlp: nn.Module,
+        scaler_mean: torch.Tensor,
+        scaler_scale: torch.Tensor,
+    ):
         super().__init__()
         self.mlp = trained_mlp
-
-        # 使用 register_buffer 将 scaler 的参数注册为模型的一部分。
-        # 这样做有几个好处：
-        #   1. 这些张量会被自动移动到正确的设备 (CPU/GPU)。
-        #   2. 它们会被包含在模型的 state_dict 中 (虽然这里我们只用于导出)。
-        #   3. 最重要的是，它们成为 ONNX 计算图的一部分，无需外部传入。
-        #   4. 我们使用 unsqueeze(0) 将其 shape 从 (9,) 变为 (1, 9) 以便广播
-        self.register_buffer('scaler_mean', scaler_mean.unsqueeze(0))
-        self.register_buffer('scaler_scale', scaler_scale.unsqueeze(0))
+        self.register_buffer("scaler_mean", scaler_mean.unsqueeze(0))
+        self.register_buffer("scaler_scale", scaler_scale.unsqueeze(0))
 
     def forward(self, x_physical: torch.Tensor) -> torch.Tensor:
-        """
-        模型的前向传播逻辑。
-        接收原始物理量，返回预测的残差。
-
-        参数:
-          - x_physical: 原始物理量输入 (未标准化), shape [batch_size, 9]
-
-        返回:
-          - residual_uv: 预测的残差, shape [batch_size, 2]
-        """
-        # 步骤 1: "烘焙"在模型内部的标准化
-        # (x - mean) / scale
         x_scaled = (x_physical - self.scaler_mean) / self.scaler_scale
-
-        # 步骤 2: 将标准化后的数据传入原 MLP 模型
-        residual_uv = self.mlp(x_scaled)
-
-        return residual_uv
+        return self.mlp(x_scaled)
 
 
-# ==============================================================================
-# 4. 主执行函数
-# ==============================================================================
-def main():
-    """
-    执行模型加载、包装和 ONNX 导出的主流程。
-    """
-    print("WDF_DL_Param ONNX 导出脚本")
-    print("-" * 40)
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for block in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
-    # --- 步骤 1: 加载原始 MLP 模型 ---
-    print(f"  [1] 加载 PyTorch MLP 模型结构...")
-    # 注意：我们仅初始化结构，权重将在下一步加载
-    original_mlp = ResidualMLP(input_size=9, output_size=2)
 
-    print(f"  [2] 从 '{os.path.basename(MODEL_PATH)}' 加载已训练的权重...")
-    # 加载状态字典。map_location='cpu' 确保即使模型在 GPU 上训练，也能在无 GPU 环境下加载。
-    original_mlp.load_state_dict(torch.load(MODEL_PATH, map_location='cpu'))
-
-    # **极其重要**: 必须将模型切换到评估模式 (.eval())
-    # 这会固定 BatchNorm 和 Dropout 的行为，使其在推理时保持确定性。
-    original_mlp.eval()
-    print("      - 模型已切换到 .eval() 模式。")
-
-    # --- 步骤 2: 加载并转换 Scaler ---
-    print(f"  [3] 从 '{os.path.basename(SCALER_PATH)}' 加载 StandardScaler...")
-    scaler = joblib.load(SCALER_PATH)
-
-    # 将 scaler 的 mean_ 和 scale_ (numpy 数组) 转换为 torch.Tensor
-    scaler_mean_tensor = torch.tensor(scaler.mean_, dtype=torch.float32)
-    scaler_scale_tensor = torch.tensor(scaler.scale_, dtype=torch.float32)
-    print("      - 已将 Scaler 均值和标准差转换为 Torch Tensor。")
-    print(f"      - 特征均值 (前3个): {scaler.mean_[:3]}")
-    print(f"      - 特征标准差 (前3个): {scaler.scale_[:3]}")
-
-    # --- 步骤 3: 创建并准备部署模型 ---
-    print("  [4] 创建包含预处理的 DeploymentNet...")
-    deployment_model = DeploymentNet(
-        trained_mlp=original_mlp,
-        scaler_mean=scaler_mean_tensor,
-        scaler_scale=scaler_scale_tensor
-    )
-    deployment_model.eval() # 同样设置为评估模式
-
-    # --- 步骤 4: 导出为 ONNX ---
-    print(f"  [5] 导出模型到 '{os.path.basename(ONNX_PATH)}'...")
-
-    # 创建一个符合输入尺寸的 "虚拟" 输入张量。
-    # batch_size=1 是一个占位符，因为我们下面会将其设为动态。
-    # 尺寸必须是 (batch_size, num_features)，即 (1, 9)。
-    dummy_input = torch.randn(1, 9)
-
-    # 定义动态维度。这允许 ONNX 模型接受不同大小的 batch。
-    # 'batch_size' 是我们给这个动态维度起的名字，可以是任意字符串。
-    dynamic_axes = {
-        'input': {0: 'batch_size'},   # key 'input' 对应下面的 input_names
-        'output': {0: 'batch_size'}  # key 'output' 对应下面的 output_names
-    }
-
-    try:
-        torch.onnx.export(
-            deployment_model,        # 要导出的模型实例
-            dummy_input,             # 一个示例输入
-            ONNX_PATH,               # 输出文件路径
-            export_params=True,      # 导出训练好的参数
-            opset_version=12,        # ONNX 算子集版本，12 是一个稳定且广泛支持的版本
-            do_constant_folding=True,# 执行常量折叠优化
-            input_names=['input'],   # 指定输入节点的名称
-            output_names=['output'], # 指定输出节点的名称
-            dynamic_axes=dynamic_axes # 指定动态维度
+def _write_csv(path: Path, columns: list[str], values: np.ndarray) -> None:
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(columns)
+        writer.writerows(
+            [[f"{float(value):.9g}" for value in row] for row in values]
         )
-        print("\n  ✓ ONNX 模型导出成功!")
-        print(f"    - 输入节点名: 'input'")
-        print(f"    - 输出节点名: 'output'")
-        print(f"    - 动态 batch: 是")
-        print(f"    - 模型已保存到: {ONNX_PATH}")
-
-    except Exception as e:
-        print(f"\n  ✗ ONNX 导出失败: {e}")
-
-    print("-" * 40)
 
 
-def verify():
-    """
-    对比 PyTorch DeploymentNet 输出与 ONNX Runtime 输出的数值一致性。
-    使用固定种子生成 100 组随机物理量输入，确认 max |diff| < 1e-5。
-    同时打印测试样本的预测值，供 Fortran 端到端验证时参考。
-    """
-    import numpy as np
-    import onnxruntime as ort
+def _load_deployment_model(
+    checkpoint_path: Path,
+    scaler_path: Path,
+) -> tuple[DeploymentNet, Any]:
+    model = ResidualMLP(input_size=len(FEATURE_COLS), output_size=len(TARGET_COLS))
+    state_dict = torch.load(
+        checkpoint_path,
+        map_location="cpu",
+        weights_only=True,
+    )
+    model.load_state_dict(state_dict)
+    model.eval()
 
-    print("\n" + "=" * 40)
-    print("  ONNX 数值一致性验证")
-    print("=" * 40)
+    scaler = joblib.load(scaler_path)
+    if int(scaler.n_features_in_) != len(FEATURE_COLS):
+        raise ValueError(
+            f"Scaler 特征数为 {scaler.n_features_in_}，预期 {len(FEATURE_COLS)}。"
+        )
+    if not np.all(np.isfinite(scaler.mean_)) or not np.all(
+        np.isfinite(scaler.scale_)
+    ):
+        raise ValueError("Scaler 包含非有限参数。")
+    if np.any(np.asarray(scaler.scale_) <= 0):
+        raise ValueError("Scaler scale_ 必须全部大于 0。")
 
-    # --- 加载 PyTorch 部署模型 ---
-    original_mlp = ResidualMLP(input_size=9, output_size=2)
-    original_mlp.load_state_dict(torch.load(MODEL_PATH, map_location='cpu'))
-    original_mlp.eval()
+    deployment_model = DeploymentNet(
+        model,
+        torch.as_tensor(scaler.mean_, dtype=torch.float32),
+        torch.as_tensor(scaler.scale_, dtype=torch.float32),
+    )
+    deployment_model.eval()
+    return deployment_model, scaler
 
-    scaler = joblib.load(SCALER_PATH)
-    scaler_mean = torch.tensor(scaler.mean_, dtype=torch.float32)
-    scaler_scale = torch.tensor(scaler.scale_, dtype=torch.float32)
 
-    deploy_model = DeploymentNet(original_mlp, scaler_mean, scaler_scale)
-    deploy_model.eval()
+def _export_model(model: DeploymentNet, onnx_path: Path) -> None:
+    dummy_input = torch.zeros((1, len(FEATURE_COLS)), dtype=torch.float32)
+    torch.onnx.export(
+        model,
+        dummy_input,
+        onnx_path,
+        export_params=True,
+        opset_version=OPSET_VERSION,
+        do_constant_folding=True,
+        input_names=[INPUT_NAME],
+        output_names=[OUTPUT_NAME],
+        dynamic_axes={
+            INPUT_NAME: {0: "batch_size"},
+            OUTPUT_NAME: {0: "batch_size"},
+        },
+    )
+    onnx_model = onnx.load(onnx_path)
+    onnx.checker.check_model(onnx_model)
 
-    # --- 生成测试数据（物理量级别的随机输入）---
-    np.random.seed(42)
-    # 9 个特征的典型范围（基于训练集统计）
-    test_input_np = np.random.randn(100, 9).astype(np.float32) * 5.0
 
-    # --- PyTorch 推理 ---
+def _verify_model(
+    model: DeploymentNet,
+    onnx_path: Path,
+) -> tuple[np.ndarray, dict[str, Any]]:
     with torch.no_grad():
-        pt_output = deploy_model(torch.from_numpy(test_input_np)).numpy()
+        pytorch_output = model(torch.from_numpy(REFERENCE_INPUTS)).numpy()
 
-    # --- ONNX Runtime 推理 ---
-    sess = ort.InferenceSession(ONNX_PATH)
-    ort_output = sess.run(['output'], {'input': test_input_np})[0]
+    session = ort.InferenceSession(
+        str(onnx_path),
+        providers=["CPUExecutionProvider"],
+    )
+    onnx_output = session.run(
+        [OUTPUT_NAME],
+        {INPUT_NAME: REFERENCE_INPUTS},
+    )[0]
 
-    # --- 对比 ---
-    diff = np.abs(pt_output - ort_output)
-    max_diff = diff.max()
-    mean_diff = diff.mean()
+    # 单样本验证动态 batch，而不仅是导出时使用的 batch=1。
+    single_output = session.run(
+        [OUTPUT_NAME],
+        {INPUT_NAME: REFERENCE_INPUTS[:1]},
+    )[0]
+    if single_output.shape != (1, len(TARGET_COLS)):
+        raise RuntimeError(f"动态 batch 验证失败: {single_output.shape}")
 
-    print(f"  测试样本数: {len(test_input_np)}")
-    print(f"  最大绝对误差: {max_diff:.2e}")
-    print(f"  平均绝对误差: {mean_diff:.2e}")
+    difference = np.abs(pytorch_output - onnx_output)
+    max_diff = float(difference.max())
+    mean_diff = float(difference.mean())
+    if max_diff >= MAX_ALLOWED_DIFF:
+        raise RuntimeError(
+            f"PyTorch/ONNX 最大绝对误差 {max_diff:.3e} "
+            f">= {MAX_ALLOWED_DIFF:.1e}"
+        )
+    if not np.all(np.isfinite(onnx_output)):
+        raise RuntimeError("ONNX 固定测试输出包含 NaN 或 Inf。")
 
-    if max_diff < 1e-5:
-        print("  ✓ 验证通过：PyTorch 与 ONNX Runtime 输出一致")
-    else:
-        print(f"  ✗ 验证失败：max_diff={max_diff:.6f} > 1e-5")
+    input_meta = session.get_inputs()[0]
+    output_meta = session.get_outputs()[0]
+    expected_input_shape = ["batch_size", len(FEATURE_COLS)]
+    expected_output_shape = ["batch_size", len(TARGET_COLS)]
+    if input_meta.name != INPUT_NAME or input_meta.shape != expected_input_shape:
+        raise RuntimeError(
+            f"ONNX 输入接口异常: {input_meta.name}, {input_meta.shape}"
+        )
+    if output_meta.name != OUTPUT_NAME or output_meta.shape != expected_output_shape:
+        raise RuntimeError(
+            f"ONNX 输出接口异常: {output_meta.name}, {output_meta.shape}"
+        )
 
-    # --- 打印 3 组参考值（供 Fortran 端对比）---
-    print("\n  参考测试向量（Fortran 端验证用）:")
-    print(f"  {'粒子':>4s}  {'输入 (前5个特征)':>40s}  {'pred_u':>10s}  {'pred_v':>10s}")
-    for i in range(3):
-        feat_str = ", ".join(f"{v:+.4f}" for v in test_input_np[i, :5])
-        print(f"  #{i+1:>3d}  [{feat_str}, ...]  {ort_output[i,0]:+.6f}  {ort_output[i,1]:+.6f}")
+    verification = {
+        "reference_batch_size": int(len(REFERENCE_INPUTS)),
+        "max_absolute_difference": max_diff,
+        "mean_absolute_difference": mean_diff,
+        "acceptance_threshold": MAX_ALLOWED_DIFF,
+        "dynamic_batch_single_sample_passed": True,
+    }
+    return onnx_output, verification
 
-    print("=" * 40)
-    return max_diff < 1e-5
+
+def _write_interface(path: Path) -> None:
+    interface = {
+        "model_version": MODEL_VERSION,
+        "opset": OPSET_VERSION,
+        "input": {
+            "name": INPUT_NAME,
+            "shape": ["batch_size", len(FEATURE_COLS)],
+            "dtype": "float32",
+            "physical_values": True,
+            "standardization": "inside_onnx",
+            "features": [
+                {"index": index + 1, "name": name, "unit": unit}
+                for index, (name, unit) in enumerate(
+                    zip(FEATURE_COLS, FEATURE_UNITS)
+                )
+            ],
+        },
+        "output": {
+            "name": OUTPUT_NAME,
+            "shape": ["batch_size", len(TARGET_COLS)],
+            "dtype": "float32",
+            "variables": [
+                {
+                    "index": index + 1,
+                    "name": name,
+                    "unit": unit,
+                    "positive_direction": "east" if index == 0 else "north",
+                }
+                for index, (name, unit) in enumerate(
+                    zip(TARGET_COLS, TARGET_UNITS)
+                )
+            ],
+        },
+        "input_validation": {
+            "nan_or_inf_supported": False,
+            "missing_value_handling_inside_model": False,
+        },
+        "fortran_layout": {
+            "input_declaration": "real(c_float) :: features(9, N)",
+            "output_declaration": "real(c_float) :: drift_uv(2, N)",
+        },
+    }
+    path.write_text(
+        json.dumps(interface, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
-if __name__ == '__main__':
+def _write_readme(path: Path, verification: dict[str, Any]) -> None:
+    path.write_text(
+        f"""# WDF ONNX Windows Handoff
+
+- Model version: `{MODEL_VERSION}`
+- Scientific status: full_9 ablation reference
+- Windows status: candidate, pending repeated C++/Fortran validation
+- ONNX opset: {OPSET_VERSION}
+- Input: `input`, float32, `(batch_size, 9)`
+- Output: `output`, float32, `(batch_size, 2)`
+- StandardScaler: baked into ONNX; do not standardize again in Fortran
+- PyTorch/ONNX max absolute difference: {verification['max_absolute_difference']:.3e}
+
+## Files
+
+- `wdf_drifter.onnx`: Windows runtime model.
+- `interface.json`: authoritative feature/output contract.
+- `test_input.csv`: fixed raw physical input vectors.
+- `expected_output.csv`: Python ONNX Runtime reference output.
+- `release_manifest.json`: source model, split and metric provenance.
+- `SHA256SUMS.txt`: release file integrity checks.
+- `onnx_wrapper.*`, `wdf_model_mod.f90`: C++/Fortran interface.
+- `test_wdf_onnx.f90`: Windows chain verification program.
+- `build_wrapper.bat`: VS2022 x64 wrapper build script.
+
+## Windows acceptance
+
+1. Replace only `wdf_drifter.onnx`; wrapper ABI is unchanged.
+2. Build in VS2022 x64 Developer Command Prompt with oneAPI Fortran.
+3. Run `test_wdf_onnx.exe`.
+4. Compare all outputs with `expected_output.csv`; require absolute error `< 1e-4`.
+5. Record the deployed ONNX SHA256 from `SHA256SUMS.txt`.
+
+The previous trajectory-index split model is internal legacy and must not be
+mixed with this release.
+""",
+        encoding="utf-8",
+    )
+
+
+def _write_checksums(release_dir: Path) -> None:
+    checksum_path = release_dir / "SHA256SUMS.txt"
+    files = sorted(
+        path for path in release_dir.iterdir()
+        if path.is_file() and path.name != checksum_path.name
+    )
+    lines = [f"{_sha256(path)}  {path.name}" for path in files]
+    checksum_path.write_text("\n".join(lines) + "\n", encoding="ascii")
+
+
+def build_release(
+    run_dir: Path,
+    release_dir: Path,
+) -> dict[str, Any]:
+    checkpoint_path = run_dir / "best_mlp.pth"
+    scaler_path = run_dir / "x_scaler.pkl"
+    split_manifest_path = run_dir / "split_manifest.json"
+    metrics_path = run_dir / "mlp_metrics.json"
+    for required_path in (
+        checkpoint_path,
+        scaler_path,
+        split_manifest_path,
+        metrics_path,
+    ):
+        if not required_path.is_file():
+            raise FileNotFoundError(required_path)
+
+    release_dir.mkdir(parents=True, exist_ok=True)
+    onnx_path = release_dir / "wdf_drifter.onnx"
+
+    model, scaler = _load_deployment_model(checkpoint_path, scaler_path)
+    _export_model(model, onnx_path)
+    onnx_output, verification = _verify_model(model, onnx_path)
+
+    _write_csv(release_dir / "test_input.csv", FEATURE_COLS, REFERENCE_INPUTS)
+    _write_csv(release_dir / "expected_output.csv", TARGET_COLS, onnx_output)
+    _write_interface(release_dir / "interface.json")
+
+    for filename in WRAPPER_FILES:
+        shutil.copy2(
+            PROJECT_ROOT / "src" / "models" / filename,
+            release_dir / filename,
+        )
+
+    shutil.copy2(scaler_path, release_dir / "x_scaler.pkl")
+
+    split_manifest = json.loads(split_manifest_path.read_text(encoding="utf-8"))
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    manifest = {
+        "model_version": MODEL_VERSION,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "scientific_status": "ablation_reference_full_9",
+        "deployment_status": "candidate_pending_windows_validation",
+        "split_method": "original_ID",
+        "split_random_seed": split_manifest["random_seed"],
+        "split_counts": {
+            name: {
+                key: split_manifest["splits"][name][key]
+                for key in ("n_original_ids", "n_segments", "n_samples")
+            }
+            for name in ("train", "val", "test")
+        },
+        "metrics": metrics,
+        "onnx": {
+            "filename": onnx_path.name,
+            "opset": OPSET_VERSION,
+            "input_name": INPUT_NAME,
+            "output_name": OUTPUT_NAME,
+            "scaler_inside_graph": True,
+        },
+        "verification": verification,
+        "source_hashes": {
+            "checkpoint_sha256": _sha256(checkpoint_path),
+            "scaler_sha256": _sha256(scaler_path),
+            "split_manifest_sha256": _sha256(split_manifest_path),
+        },
+        "scaler": {
+            "n_features_in": int(scaler.n_features_in_),
+            "n_samples_seen": int(scaler.n_samples_seen_),
+            "mean": np.asarray(scaler.mean_).tolist(),
+            "scale": np.asarray(scaler.scale_).tolist(),
+        },
+        "software": {
+            "torch": torch.__version__,
+            "onnx": onnx.__version__,
+            "onnxruntime": ort.__version__,
+        },
+    }
+    (release_dir / "release_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _write_readme(release_dir / "README.md", verification)
+    _write_checksums(release_dir)
+    return manifest
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="生成 WDF ONNX Windows 交接包")
+    parser.add_argument("--run-name", default=DEFAULT_RUN_NAME)
+    parser.add_argument(
+        "--release-dir",
+        type=Path,
+        default=PROJECT_ROOT / "deployment" / "releases" / MODEL_VERSION,
+    )
+    args = parser.parse_args()
+
+    run_dir = PROJECT_ROOT / "trained_models" / args.run_name
+    release_dir = args.release_dir.resolve()
+    manifest = build_release(run_dir, release_dir)
+
+    print("WDF ONNX 发布包生成完成")
+    print(f"  version : {manifest['model_version']}")
+    print(f"  source  : {run_dir}")
+    print(f"  release : {release_dir}")
+    print(
+        "  max diff: "
+        f"{manifest['verification']['max_absolute_difference']:.3e}"
+    )
+    print("  Windows validation: pending")
+
+
+if __name__ == "__main__":
     main()
-    verify()

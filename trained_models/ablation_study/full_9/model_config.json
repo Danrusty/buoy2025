@@ -1,0 +1,38 @@
+{
+  "model_class": "ResidualMLP",
+  "architecture": [
+    9,
+    512,
+    512,
+    256,
+    128,
+    2
+  ],
+  "batch_norm": true,
+  "dropout": 0.1,
+  "feature_columns": [
+    "era5_u10",
+    "era5_v10",
+    "era5_wind_speed",
+    "era5_wind_dir_sin",
+    "era5_wind_dir_cos",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos"
+  ],
+  "target_columns": [
+    "residual_u",
+    "residual_v"
+  ],
+  "batch_size": 8192,
+  "max_epochs": 200,
+  "early_stopping_patience": 20,
+  "checkpoint_monitor": "validation_loss",
+  "learning_rate": 0.0003,
+  "minimum_learning_rate": 1e-06,
+  "optimizer": "AdamW",
+  "weight_decay": 0.0001,
+  "scheduler": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+  "random_seed": 42
+}

@@ -1,53 +1,32 @@
-"""
-train_mlp.py
-============
-Stateless MLP 训练脚本：预测漂流浮标残差速度（residual_u / residual_v）。
+"""Stateless MLP 训练、评估与实验产物保存。"""
 
-网络结构：
-  Input(9) -> Linear(256) -> BN -> ReLU
-           -> Linear(128) -> BN -> ReLU
-           -> Linear(64)  -> BN -> ReLU
-           -> Linear(2)
-
-训练配置：
-  - Loss      : MSELoss
-  - Optimizer : AdamW (lr=1e-3)
-  - Scheduler : ReduceLROnPlateau（监控 val_loss）
-  - Early Stop: patience=5, max_epochs=50
-  - Batch Size: 16384（适合大数据集）
-
-运行方式：
-  cd src/models
-  conda run -n buoy-drifter python train_mlp.py            # 采样模式（快速验证）
-  conda run -n buoy-drifter python train_mlp.py --full     # 完整训练
-"""
-
-import os
-import sys
+import argparse
+import json
 import logging
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import r2_score
 import matplotlib
 matplotlib.use('Agg')  # 无 GUI 环境下保存图片
 import matplotlib.pyplot as plt
 
-from data_loader import load_and_split_data
+from data_loader import DEFAULT_RUN_NAME, PROJECT_ROOT, load_and_split_data
 from baseline import run_linear_baseline
+from evaluation import regression_metrics
 
 # ==============================================================================
 # 路径配置
 # ==============================================================================
-TRAINED_MODELS_DIR = '../../trained_models'
-RESULTS_DIR        = '../../results'
-LOG_DIR            = '../../logs'
-os.makedirs(TRAINED_MODELS_DIR, exist_ok=True)
-os.makedirs(RESULTS_DIR, exist_ok=True)
-os.makedirs(LOG_DIR, exist_ok=True)
+TRAINED_MODELS_DIR = PROJECT_ROOT / "trained_models"
+RESULTS_DIR = PROJECT_ROOT / "results"
+LOG_DIR = PROJECT_ROOT / "logs"
+TRAINED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # ==============================================================================
 # 超参数
@@ -58,6 +37,7 @@ PATIENCE      = 20
 LR            = 3e-4   # 大网络建议 3e-4；1e-4 对 400K 参数网络收敛太慢
 LR_MIN        = 1e-6
 RANDOM_SEED   = 42
+MIN_DELTA     = 0.0
 
 torch.manual_seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -133,11 +113,16 @@ class GpuTensorDataset:
         return (self.n + self.batch_size - 1) // self.batch_size
 
     def __iter__(self):
-        idx = torch.randperm(self.n, device=self.X.device) if self.shuffle \
-              else torch.arange(self.n, device=self.X.device)
+        if not self.shuffle:
+            for start in range(0, self.n, self.batch_size):
+                end = start + self.batch_size
+                yield self.X[start:end], self.y[start:end]
+            return
+
+        indices = torch.randperm(self.n, device=self.X.device)
         for start in range(0, self.n, self.batch_size):
-            batch_idx = idx[start: start + self.batch_size]
-            yield self.X[batch_idx], self.y[batch_idx]
+            batch_indices = indices[start: start + self.batch_size]
+            yield self.X[batch_indices], self.y[batch_indices]
 
 
 @torch.no_grad()
@@ -159,8 +144,8 @@ def _evaluate(model: nn.Module, dataset: GpuTensorDataset,
     preds    = np.concatenate(preds_list)
     targets  = np.concatenate(targets_list)
     avg_loss = total_loss / total_samples
-    r2       = r2_score(targets, preds)
-    return avg_loss, r2
+    metrics = regression_metrics(targets, preds)
+    return avg_loss, metrics["r2_joint"]
 
 
 # ==============================================================================
@@ -170,14 +155,21 @@ _logger = logging.getLogger(__name__)
 
 
 def train(splits: dict) -> dict:
+    torch.manual_seed(RANDOM_SEED)
+    np.random.seed(RANDOM_SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(RANDOM_SEED)
+
     device = _get_device()
+    artifact_dir = Path(splits["artifact_dir"])
+    artifact_dir.mkdir(parents=True, exist_ok=True)
     _logger.info(f"使用设备: {device}")
     if device.type == 'cuda':
         _logger.info(f"GPU: {torch.cuda.get_device_name(0)}, "
                     f"显存: {torch.cuda.get_device_properties(0).total_memory/1024**3:.1f} GB")
 
     # 一次性将全部数据上传到 GPU 显存（消除逐 batch CPU→GPU 传输瓶颈）
-    _logger.info("将训练/验证/测试数据上传到 GPU 显存...")
+    _logger.info("将训练/验证/测试数据转换为 %s 张量...", device)
     train_ds = GpuTensorDataset(splits['X_train'], splits['y_train'], device, BATCH_SIZE, shuffle=True)
     val_ds   = GpuTensorDataset(splits['X_val'],   splits['y_val'],   device, BATCH_SIZE, shuffle=False)
     test_ds  = GpuTensorDataset(splits['X_test'],  splits['y_test'],  device, BATCH_SIZE, shuffle=False)
@@ -185,8 +177,35 @@ def train(splits: dict) -> dict:
         _logger.info(f"显存占用（数据上传后）: {torch.cuda.memory_allocated()/1024**2:.0f} MB")
 
     # 初始化模型
-    model = ResidualMLP().to(device)
-    _logger.info(f"模型参数量: {sum(p.numel() for p in model.parameters()):,}")
+    input_size = len(splits["feature_cols"])
+    model = ResidualMLP(input_size=input_size).to(device)
+    parameter_count = sum(p.numel() for p in model.parameters())
+    _logger.info(f"模型参数量: {parameter_count:,}")
+
+    config_path = artifact_dir / "model_config.json"
+    config = {
+        "model_class": "ResidualMLP",
+        "architecture": [input_size, 512, 512, 256, 128, 2],
+        "batch_norm": True,
+        "dropout": 0.1,
+        "feature_columns": splits["feature_cols"],
+        "target_columns": splits["target_cols"],
+        "batch_size": BATCH_SIZE,
+        "max_epochs": EPOCHS,
+        "early_stopping_patience": PATIENCE,
+        "checkpoint_monitor": "validation_loss",
+        "learning_rate": LR,
+        "minimum_learning_rate": LR_MIN,
+        "optimizer": "AdamW",
+        "weight_decay": 1e-4,
+        "scheduler": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+        "random_seed": RANDOM_SEED,
+    }
+    config_path.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _logger.info("模型配置已保存: %s", config_path)
 
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
@@ -198,10 +217,11 @@ def train(splits: dict) -> dict:
         optimizer, T_0=60, T_mult=2, eta_min=LR_MIN
     )
 
-    best_val_loss  = float('inf')
-    best_val_r2    = float('-inf')
-    no_improve     = 0
-    best_model_path = os.path.join(TRAINED_MODELS_DIR, 'best_mlp.pth')
+    best_val_loss = float("inf")
+    best_val_r2_at_checkpoint = float("-inf")
+    best_epoch = 0
+    no_improve = 0
+    best_model_path = artifact_dir / "best_mlp.pth"
     history = {'train_loss': [], 'val_loss': [], 'val_r2': [], 'lr': []}
 
     _logger.info(f"\n{'='*60}")
@@ -244,17 +264,19 @@ def train(splits: dict) -> dict:
         # CosineAnnealingWarmRestarts 按 epoch 步进（不需要监控 val_loss）
         scheduler.step(epoch)
 
-        # 早停：同时监控 val_loss 和 val_r2，任一改善即重置计数器
-        # （val_r2 更能反映真实泛化能力，对 loss 的微小数值波动更鲁棒）
-        improved = (val_loss < best_val_loss) or (val_r2 > best_val_r2)
+        # checkpoint 与 early stopping 使用同一唯一标准，避免最佳指标和权重错位。
+        improved = val_loss < (best_val_loss - MIN_DELTA)
         if improved:
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-            if val_r2 > best_val_r2:
-                best_val_r2 = val_r2
+            best_val_loss = val_loss
+            best_val_r2_at_checkpoint = val_r2
+            best_epoch = epoch
             no_improve = 0
             torch.save(model.state_dict(), best_model_path)
-            _logger.info(f"  ✓ 改善（val_loss={best_val_loss:.6f}, val_R²={best_val_r2:.4f}），已保存最佳模型")
+            _logger.info(
+                "  改善（val_loss=%.6f, val_R²=%.4f），已保存最佳模型",
+                best_val_loss,
+                best_val_r2_at_checkpoint,
+            )
         else:
             no_improve += 1
             if no_improve >= PATIENCE:
@@ -264,7 +286,15 @@ def train(splits: dict) -> dict:
     _logger.info("--- 训练结束 ---")
 
     # 加载最佳权重进行最终评估
-    model.load_state_dict(torch.load(best_model_path, map_location=device))
+    model.load_state_dict(
+        torch.load(best_model_path, map_location=device, weights_only=True)
+    )
+    _logger.info(
+        "加载 epoch %d 的最佳权重: val_loss=%.6f, val_R²=%.4f",
+        best_epoch,
+        best_val_loss,
+        best_val_r2_at_checkpoint,
+    )
 
     return {
         'model':    model,
@@ -272,17 +302,21 @@ def train(splits: dict) -> dict:
         'test_ds':  test_ds,
         'device':   device,
         'criterion': criterion,
+        'best_epoch': best_epoch,
+        'best_val_loss': best_val_loss,
+        'best_val_r2': best_val_r2_at_checkpoint,
+        'best_model_path': best_model_path,
+        'artifact_dir': artifact_dir,
+        'parameter_count': parameter_count,
     }
 
 
 # ==============================================================================
 # 最终评估（Test 集）& 与线性基准对比
 # ==============================================================================
-def evaluate_and_compare(train_result: dict, baseline_result: dict) -> None:
+def evaluate_and_compare(train_result: dict, baseline_result: dict) -> dict:
     model     = train_result['model']
     test_ds   = train_result['test_ds']
-    criterion = train_result['criterion']
-
     # 收集完整预测结果用于细粒度指标
     model.eval()
     preds_list, targets_list = [], []
@@ -291,16 +325,15 @@ def evaluate_and_compare(train_result: dict, baseline_result: dict) -> None:
             preds_list.append(model(X_b).cpu().numpy())
             targets_list.append(y_b.cpu().numpy())
 
-    test_loss = float(np.mean((np.concatenate(preds_list) - np.concatenate(targets_list)) ** 2))
-
     preds   = np.concatenate(preds_list)
     targets = np.concatenate(targets_list)
 
-    r2_u    = r2_score(targets[:, 0], preds[:, 0])
-    r2_v    = r2_score(targets[:, 1], preds[:, 1])
-    r2_joint = r2_score(targets, preds)
-    rmse    = float(np.sqrt(np.mean((preds - targets) ** 2)))
-    mae     = float(np.mean(np.abs(preds - targets)))
+    test_metrics = regression_metrics(targets, preds)
+    r2_u = test_metrics["r2_u"]
+    r2_v = test_metrics["r2_v"]
+    r2_joint = test_metrics["r2_joint"]
+    rmse = test_metrics["rmse"]
+    mae = test_metrics["mae"]
 
     sep = "=" * 60
     _logger.info(f"\n{sep}")
@@ -326,11 +359,49 @@ def evaluate_and_compare(train_result: dict, baseline_result: dict) -> None:
         _logger.info("✗ MLP 未超过线性基准，建议检查特征或增大训练轮数。")
     _logger.info(sep)
 
+    metrics = {
+        "checkpoint": {
+            "path": str(
+                Path(train_result["best_model_path"]).relative_to(PROJECT_ROOT)
+            ),
+            "best_epoch": train_result["best_epoch"],
+            "validation_loss": train_result["best_val_loss"],
+            "validation_r2_joint": train_result["best_val_r2"],
+            "parameter_count": train_result["parameter_count"],
+        },
+        "test": {
+            "r2_u": r2_u,
+            "r2_v": r2_v,
+            "r2_joint": r2_joint,
+            "rmse": rmse,
+            "mae": mae,
+        },
+        "linear_baseline_test": {
+            key: float(baseline_result[key])
+            for key in ("r2_u", "r2_v", "r2_joint", "rmse", "mae")
+        },
+        "mlp_vs_linear": {
+            "rmse_improvement_percent": rmse_improve,
+            "r2_joint_difference": r2_improve,
+        },
+    }
+    metrics_path = Path(train_result["artifact_dir"]) / "mlp_metrics.json"
+    metrics_path.write_text(
+        json.dumps(metrics, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _logger.info("MLP 指标已保存: %s", metrics_path)
+    return metrics
+
 
 # ==============================================================================
 # 绘图
 # ==============================================================================
-def plot_history(history: dict) -> None:
+def plot_history(
+    history: dict,
+    artifact_dir: Path,
+    result_dir: Path | None = None,
+) -> tuple[Path, Path]:
     epochs = range(1, len(history['train_loss']) + 1)
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
@@ -358,24 +429,33 @@ def plot_history(history: dict) -> None:
     axes[2].grid(True)
 
     fig.tight_layout()
-    out_path = os.path.join(RESULTS_DIR, 'mlp_training_curve.png')
+    result_dir = result_dir or RESULTS_DIR / artifact_dir.name
+    result_dir.mkdir(parents=True, exist_ok=True)
+    out_path = result_dir / "mlp_training_curve.png"
     plt.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"\n训练曲线已保存: {out_path}")
+    history_path = artifact_dir / "training_history.json"
+    history_path.write_text(
+        json.dumps(history, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _logger.info("训练曲线已保存: %s", out_path)
+    _logger.info("训练历史已保存: %s", history_path)
+    return out_path, history_path
 
 
 # ==============================================================================
 # 主入口
 # ==============================================================================
-def _setup_logging() -> logging.Logger:
+def _setup_logging(run_name: str) -> logging.Logger:
     """
     统一日志配置入口（仅在 train_mlp.py 作为主程序时调用）。
     配置根 logger，使 data_loader / baseline 的模块级 logger 自动继承，
     全程只写一个带时间戳的 log 文件。
     """
-    os.makedirs(LOG_DIR, exist_ok=True)
-    log_path = os.path.join(
-        LOG_DIR, f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LOG_DIR / (
+        f"train_{run_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     )
     root = logging.getLogger()
     root.setLevel(logging.INFO)
@@ -396,16 +476,31 @@ def _setup_logging() -> logging.Logger:
 
 
 if __name__ == '__main__':
-    sample = '--full' not in sys.argv
-    mode_tag = "【采样模式 200 条轨迹】" if sample else "【完整数据集】"
+    parser = argparse.ArgumentParser(description="训练 Stateless WDF MLP")
+    parser.add_argument("--full", action="store_true", help="使用完整数据集")
+    parser.add_argument("--sample-size", type=int, default=200)
+    parser.add_argument("--run-name", default=DEFAULT_RUN_NAME)
+    args = parser.parse_args()
 
-    logger = _setup_logging()
+    sample = not args.full
+    mode_tag = (
+        f"【采样模式 {args.sample_size} 个 original_ID】"
+        if sample
+        else "【完整数据集】"
+    )
+    artifact_dir = TRAINED_MODELS_DIR / args.run_name
+
+    logger = _setup_logging(args.run_name)
     _logger.info(f"{'='*60}")
     _logger.info(f"  WDF_DL_Param Phase 2 — MLP 训练  {mode_tag}")
     _logger.info(f"{'='*60}")
 
     # 步骤 1: 加载数据
-    splits = load_and_split_data(sample_mode=sample, sample_size=200)
+    splits = load_and_split_data(
+        sample_mode=sample,
+        sample_size=args.sample_size,
+        artifact_dir=artifact_dir,
+    )
 
     # 步骤 2: 线性基准（用于最终对比）
     _logger.info("\n--- 运行线性基准 ---")
@@ -419,6 +514,6 @@ if __name__ == '__main__':
     evaluate_and_compare(train_result, baseline_result)
 
     # 步骤 5: 保存训练曲线
-    plot_history(train_result['history'])
+    plot_history(train_result['history'], artifact_dir)
 
     _logger.info("=== 全流程完成 ===")

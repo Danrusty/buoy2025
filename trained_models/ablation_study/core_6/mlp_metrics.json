@@ -1,0 +1,27 @@
+{
+  "checkpoint": {
+    "path": "trained_models/ablation_study/core_6/best_mlp.pth",
+    "best_epoch": 12,
+    "validation_loss": 0.03801810087941285,
+    "validation_r2_joint": 0.12845119175778774,
+    "parameter_count": 433538
+  },
+  "test": {
+    "r2_u": 0.1271794286771767,
+    "r2_v": 0.12736886150904858,
+    "r2_joint": 0.12727414509311263,
+    "rmse": 0.19469612211186688,
+    "mae": 0.14331699393081085
+  },
+  "linear_baseline_test": {
+    "r2_u": 0.12154202992486851,
+    "r2_v": 0.12309173729332534,
+    "r2_joint": 0.12231688360909693,
+    "rmse": 0.19525023742205133,
+    "mae": 0.14371787708735873
+  },
+  "mlp_vs_linear": {
+    "rmse_improvement_percent": 0.28379750903282347,
+    "r2_joint_difference": 0.004957261484015707
+  }
+}

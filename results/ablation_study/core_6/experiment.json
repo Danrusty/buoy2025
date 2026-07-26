@@ -1,0 +1,48 @@
+{
+  "ablation_name": "ablation_study",
+  "feature_set": "core_6",
+  "features": [
+    "era5_u10",
+    "era5_v10",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos"
+  ],
+  "n_features": 6,
+  "sample_mode": false,
+  "split_group": "original_ID",
+  "random_seed": 42,
+  "log_path": "logs/ablation_core_6_20260726_222753.log",
+  "artifact_dir": "trained_models/ablation_study/core_6",
+  "result_dir": "results/ablation_study/core_6",
+  "curve_path": "results/ablation_study/core_6/mlp_training_curve.png",
+  "history_path": "trained_models/ablation_study/core_6/training_history.json",
+  "metrics": {
+    "checkpoint": {
+      "path": "trained_models/ablation_study/core_6/best_mlp.pth",
+      "best_epoch": 12,
+      "validation_loss": 0.03801810087941285,
+      "validation_r2_joint": 0.12845119175778774,
+      "parameter_count": 433538
+    },
+    "test": {
+      "r2_u": 0.1271794286771767,
+      "r2_v": 0.12736886150904858,
+      "r2_joint": 0.12727414509311263,
+      "rmse": 0.19469612211186688,
+      "mae": 0.14331699393081085
+    },
+    "linear_baseline_test": {
+      "r2_u": 0.12154202992486851,
+      "r2_v": 0.12309173729332534,
+      "r2_joint": 0.12231688360909693,
+      "rmse": 0.19525023742205133,
+      "mae": 0.14371787708735873
+    },
+    "mlp_vs_linear": {
+      "rmse_improvement_percent": 0.28379750903282347,
+      "r2_joint_difference": 0.004957261484015707
+    }
+  }
+}
