@@ -1,0 +1,5 @@
+*.bat text eol=crlf
+*.csv text eol=crlf
+*.onnx binary
+*.pkl binary
+*.pth binary

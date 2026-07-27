@@ -24,36 +24,41 @@ import onnxruntime as ort
 import torch
 import torch.nn as nn
 
-from data_loader import FEATURE_COLS, PROJECT_ROOT, TARGET_COLS
+from data_loader import PROJECT_ROOT, TARGET_COLS
 from train_mlp import ResidualMLP
 
 
-MODEL_VERSION = "wdf_full9_ablation_reference_v1"
-DEFAULT_RUN_NAME = "ablation_study/full_9"
+MODEL_VERSION = "wdf_core6_original_id_v1"
+DEFAULT_RUN_NAME = "ablation_study/core_6"
 OPSET_VERSION = 12
 INPUT_NAME = "input"
 OUTPUT_NAME = "output"
 MAX_ALLOWED_DIFF = 1e-5
 
-FEATURE_UNITS = [
-    "m/s",
-    "m/s",
-    "m/s",
-    "dimensionless",
-    "dimensionless",
-    "m",
-    "s",
-    "dimensionless",
-    "dimensionless",
+FROZEN_FEATURE_COLS = [
+    "era5_u10",
+    "era5_v10",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos",
 ]
+FEATURE_UNITS = {
+    "era5_u10": "m/s",
+    "era5_v10": "m/s",
+    "era5_swh": "m",
+    "era5_mwp": "s",
+    "era5_wave_dir_sin": "dimensionless",
+    "era5_wave_dir_cos": "dimensionless",
+}
 TARGET_UNITS = ["m/s", "m/s"]
 
-# 三组有限、物理量级合理且方向编码自洽的固定测试向量。
+# 三组有限、物理量级合理的 core6 固定测试向量。
 REFERENCE_INPUTS = np.asarray(
     [
-        [5.0, 0.0, 5.0, 0.0, 1.0, 1.5, 7.0, 0.0, 1.0],
-        [-4.0, 3.0, 5.0, 0.6, -0.8, 2.5, 9.0, 1.0, 0.0],
-        [0.0, -8.0, 8.0, -1.0, 0.0, 4.0, 12.0, -0.70710677, 0.70710677],
+        [5.0, 0.0, 1.5, 7.0, 0.0, 1.0],
+        [-4.0, 3.0, 2.5, 9.0, 1.0, 0.0],
+        [0.0, -8.0, 4.0, 12.0, -0.70710677, 0.70710677],
     ],
     dtype=np.float32,
 )
@@ -64,6 +69,7 @@ WRAPPER_FILES = [
     "wdf_model_mod.f90",
     "test_wdf_onnx.f90",
     "build_wrapper.bat",
+    "verify_windows.bat",
 ]
 
 
@@ -106,8 +112,9 @@ def _write_csv(path: Path, columns: list[str], values: np.ndarray) -> None:
 def _load_deployment_model(
     checkpoint_path: Path,
     scaler_path: Path,
+    feature_cols: list[str],
 ) -> tuple[DeploymentNet, Any]:
-    model = ResidualMLP(input_size=len(FEATURE_COLS), output_size=len(TARGET_COLS))
+    model = ResidualMLP(input_size=len(feature_cols), output_size=len(TARGET_COLS))
     state_dict = torch.load(
         checkpoint_path,
         map_location="cpu",
@@ -117,9 +124,9 @@ def _load_deployment_model(
     model.eval()
 
     scaler = joblib.load(scaler_path)
-    if int(scaler.n_features_in_) != len(FEATURE_COLS):
+    if int(scaler.n_features_in_) != len(feature_cols):
         raise ValueError(
-            f"Scaler 特征数为 {scaler.n_features_in_}，预期 {len(FEATURE_COLS)}。"
+            f"Scaler 特征数为 {scaler.n_features_in_}，预期 {len(feature_cols)}。"
         )
     if not np.all(np.isfinite(scaler.mean_)) or not np.all(
         np.isfinite(scaler.scale_)
@@ -137,8 +144,12 @@ def _load_deployment_model(
     return deployment_model, scaler
 
 
-def _export_model(model: DeploymentNet, onnx_path: Path) -> None:
-    dummy_input = torch.zeros((1, len(FEATURE_COLS)), dtype=torch.float32)
+def _export_model(
+    model: DeploymentNet,
+    onnx_path: Path,
+    feature_cols: list[str],
+) -> None:
+    dummy_input = torch.zeros((1, len(feature_cols)), dtype=torch.float32)
     torch.onnx.export(
         model,
         dummy_input,
@@ -160,6 +171,7 @@ def _export_model(model: DeploymentNet, onnx_path: Path) -> None:
 def _verify_model(
     model: DeploymentNet,
     onnx_path: Path,
+    feature_cols: list[str],
 ) -> tuple[np.ndarray, dict[str, Any]]:
     with torch.no_grad():
         pytorch_output = model(torch.from_numpy(REFERENCE_INPUTS)).numpy()
@@ -194,7 +206,7 @@ def _verify_model(
 
     input_meta = session.get_inputs()[0]
     output_meta = session.get_outputs()[0]
-    expected_input_shape = ["batch_size", len(FEATURE_COLS)]
+    expected_input_shape = ["batch_size", len(feature_cols)]
     expected_output_shape = ["batch_size", len(TARGET_COLS)]
     if input_meta.name != INPUT_NAME or input_meta.shape != expected_input_shape:
         raise RuntimeError(
@@ -215,20 +227,20 @@ def _verify_model(
     return onnx_output, verification
 
 
-def _write_interface(path: Path) -> None:
+def _write_interface(path: Path, feature_cols: list[str]) -> None:
     interface = {
         "model_version": MODEL_VERSION,
         "opset": OPSET_VERSION,
         "input": {
             "name": INPUT_NAME,
-            "shape": ["batch_size", len(FEATURE_COLS)],
+            "shape": ["batch_size", len(feature_cols)],
             "dtype": "float32",
             "physical_values": True,
             "standardization": "inside_onnx",
             "features": [
                 {"index": index + 1, "name": name, "unit": unit}
                 for index, (name, unit) in enumerate(
-                    zip(FEATURE_COLS, FEATURE_UNITS)
+                    zip(feature_cols, (FEATURE_UNITS[name] for name in feature_cols))
                 )
             ],
         },
@@ -253,7 +265,9 @@ def _write_interface(path: Path) -> None:
             "missing_value_handling_inside_model": False,
         },
         "fortran_layout": {
-            "input_declaration": "real(c_float) :: features(9, N)",
+            "input_declaration": (
+                f"real(c_float) :: features({len(feature_cols)}, N)"
+            ),
             "output_declaration": "real(c_float) :: drift_uv(2, N)",
         },
     }
@@ -263,18 +277,26 @@ def _write_interface(path: Path) -> None:
     )
 
 
-def _write_readme(path: Path, verification: dict[str, Any]) -> None:
+def _write_readme(
+    path: Path,
+    verification: dict[str, Any],
+    feature_cols: list[str],
+) -> None:
     path.write_text(
         f"""# WDF ONNX Windows Handoff
 
 - Model version: `{MODEL_VERSION}`
-- Scientific status: full_9 ablation reference
+- Scientific status: frozen core_6 model selected by controlled ablation
 - Windows status: candidate, pending repeated C++/Fortran validation
 - ONNX opset: {OPSET_VERSION}
-- Input: `input`, float32, `(batch_size, 9)`
+- Input: `input`, float32, `(batch_size, {len(feature_cols)})`
 - Output: `output`, float32, `(batch_size, 2)`
 - StandardScaler: baked into ONNX; do not standardize again in Fortran
 - PyTorch/ONNX max absolute difference: {verification['max_absolute_difference']:.3e}
+
+## Frozen input order
+
+{chr(10).join(f"{index}. `{name}`" for index, name in enumerate(feature_cols, 1))}
 
 ## Files
 
@@ -287,12 +309,13 @@ def _write_readme(path: Path, verification: dict[str, Any]) -> None:
 - `onnx_wrapper.*`, `wdf_model_mod.f90`: C++/Fortran interface.
 - `test_wdf_onnx.f90`: Windows chain verification program.
 - `build_wrapper.bat`: VS2022 x64 wrapper build script.
+- `verify_windows.bat`: one-command VS2022/oneAPI build and acceptance test.
 
 ## Windows acceptance
 
-1. Replace only `wdf_drifter.onnx`; wrapper ABI is unchanged.
-2. Build in VS2022 x64 Developer Command Prompt with oneAPI Fortran.
-3. Run `test_wdf_onnx.exe`.
+1. Use this complete release as one version; do not mix it with any 9-feature wrapper.
+2. Run `verify_windows.bat` from a normal Windows command prompt.
+3. The script loads VS2022/oneAPI, builds the wrapper and runs the Fortran test.
 4. Compare all outputs with `expected_output.csv`; require absolute error `< 1e-4`.
 5. Record the deployed ONNX SHA256 from `SHA256SUMS.txt`.
 
@@ -321,31 +344,57 @@ def build_release(
     scaler_path = run_dir / "x_scaler.pkl"
     split_manifest_path = run_dir / "split_manifest.json"
     metrics_path = run_dir / "mlp_metrics.json"
+    config_path = run_dir / "model_config.json"
     for required_path in (
         checkpoint_path,
         scaler_path,
         split_manifest_path,
         metrics_path,
+        config_path,
     ):
         if not required_path.is_file():
             raise FileNotFoundError(required_path)
 
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    feature_cols = config.get("feature_columns")
+    target_cols = config.get("target_columns")
+    architecture = config.get("architecture")
+    if feature_cols != FROZEN_FEATURE_COLS:
+        raise ValueError(
+            "拒绝导出非冻结 core6 特征接口: "
+            f"{feature_cols!r} != {FROZEN_FEATURE_COLS!r}"
+        )
+    if target_cols != TARGET_COLS:
+        raise ValueError(f"输出顺序不匹配: {target_cols!r} != {TARGET_COLS!r}")
+    if not architecture or architecture[0] != len(feature_cols):
+        raise ValueError(f"模型配置输入维度异常: {architecture!r}")
+
     release_dir.mkdir(parents=True, exist_ok=True)
+    # 重新导出会改变发布物，因此旧的外部 Windows 验收记录自动失效。
+    (release_dir / "WINDOWS_VALIDATION.md").unlink(missing_ok=True)
     onnx_path = release_dir / "wdf_drifter.onnx"
 
-    model, scaler = _load_deployment_model(checkpoint_path, scaler_path)
-    _export_model(model, onnx_path)
-    onnx_output, verification = _verify_model(model, onnx_path)
+    model, scaler = _load_deployment_model(
+        checkpoint_path,
+        scaler_path,
+        feature_cols,
+    )
+    _export_model(model, onnx_path, feature_cols)
+    onnx_output, verification = _verify_model(model, onnx_path, feature_cols)
 
-    _write_csv(release_dir / "test_input.csv", FEATURE_COLS, REFERENCE_INPUTS)
+    _write_csv(release_dir / "test_input.csv", feature_cols, REFERENCE_INPUTS)
     _write_csv(release_dir / "expected_output.csv", TARGET_COLS, onnx_output)
-    _write_interface(release_dir / "interface.json")
+    _write_interface(release_dir / "interface.json", feature_cols)
 
     for filename in WRAPPER_FILES:
-        shutil.copy2(
-            PROJECT_ROOT / "src" / "models" / filename,
-            release_dir / filename,
-        )
+        source_path = PROJECT_ROOT / "src" / "models" / filename
+        destination_path = release_dir / filename
+        if source_path.suffix.lower() == ".bat":
+            # cmd.exe requires reliable CRLF continuation handling.
+            text = source_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+            destination_path.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
+        else:
+            shutil.copy2(source_path, destination_path)
 
     shutil.copy2(scaler_path, release_dir / "x_scaler.pkl")
 
@@ -354,7 +403,7 @@ def build_release(
     manifest = {
         "model_version": MODEL_VERSION,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "scientific_status": "ablation_reference_full_9",
+        "scientific_status": "frozen_core_6_selected_by_ablation",
         "deployment_status": "candidate_pending_windows_validation",
         "split_method": "original_ID",
         "split_random_seed": split_manifest["random_seed"],
@@ -372,12 +421,14 @@ def build_release(
             "input_name": INPUT_NAME,
             "output_name": OUTPUT_NAME,
             "scaler_inside_graph": True,
+            "feature_count": len(feature_cols),
         },
         "verification": verification,
         "source_hashes": {
             "checkpoint_sha256": _sha256(checkpoint_path),
             "scaler_sha256": _sha256(scaler_path),
             "split_manifest_sha256": _sha256(split_manifest_path),
+            "model_config_sha256": _sha256(config_path),
         },
         "scaler": {
             "n_features_in": int(scaler.n_features_in_),
@@ -395,7 +446,7 @@ def build_release(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    _write_readme(release_dir / "README.md", verification)
+    _write_readme(release_dir / "README.md", verification, feature_cols)
     _write_checksums(release_dir)
     return manifest
 
