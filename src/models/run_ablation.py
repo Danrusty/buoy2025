@@ -22,8 +22,6 @@ from train_mlp import evaluate_and_compare, plot_history, train
 
 
 ABLATION_NAME = "ablation_study"
-ARTIFACT_ROOT = PROJECT_ROOT / "trained_models" / ABLATION_NAME
-RESULT_ROOT = PROJECT_ROOT / "results" / ABLATION_NAME
 LOG_ROOT = PROJECT_ROOT / "logs"
 
 FEATURE_SETS = {
@@ -45,10 +43,32 @@ def _relative_path(path: Path) -> str:
     return str(path.resolve().relative_to(PROJECT_ROOT))
 
 
-def _setup_logging(feature_set: str) -> Path:
+def _validate_study_name(study_name: str) -> str:
+    if (
+        not study_name
+        or study_name in {".", ".."}
+        or "/" in study_name
+        or "\\" in study_name
+    ):
+        raise ValueError(
+            "study_name 必须是非空的单级目录名，不能包含路径分隔符。"
+        )
+    return study_name
+
+
+def _study_roots(study_name: str) -> tuple[Path, Path]:
+    validated = _validate_study_name(study_name)
+    return (
+        PROJECT_ROOT / "trained_models" / validated,
+        PROJECT_ROOT / "results" / validated,
+    )
+
+
+def _setup_logging(feature_set: str, study_name: str) -> Path:
     LOG_ROOT.mkdir(parents=True, exist_ok=True)
     log_path = LOG_ROOT / (
-        f"ablation_{feature_set}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        f"{study_name}_{feature_set}_"
+        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     )
     root = logging.getLogger()
     root.handlers.clear()
@@ -70,21 +90,27 @@ def run_experiment(
     feature_set_name: str,
     sample_mode: bool,
     sample_size: int,
+    data_path: Path,
+    study_name: str,
 ) -> dict:
     features = FEATURE_SETS[feature_set_name]
-    artifact_dir = ARTIFACT_ROOT / feature_set_name
-    result_dir = RESULT_ROOT / feature_set_name
+    artifact_root, result_root = _study_roots(study_name)
+    artifact_dir = artifact_root / feature_set_name
+    result_dir = result_root / feature_set_name
     artifact_dir.mkdir(parents=True, exist_ok=True)
     result_dir.mkdir(parents=True, exist_ok=True)
 
-    log_path = _setup_logging(feature_set_name)
+    log_path = _setup_logging(feature_set_name, study_name)
     logger.info("=" * 68)
     logger.info("Ablation %s | %d features", feature_set_name, len(features))
     logger.info("特征顺序: %s", features)
+    logger.info("数据路径: %s", data_path.resolve())
+    logger.info("研究名称: %s", study_name)
     logger.info("模式: %s", "sample" if sample_mode else "full")
     logger.info("=" * 68)
 
     splits = load_and_split_data(
+        filepath=data_path,
         sample_mode=sample_mode,
         sample_size=sample_size,
         artifact_dir=artifact_dir,
@@ -100,7 +126,8 @@ def run_experiment(
     )
 
     metadata = {
-        "ablation_name": ABLATION_NAME,
+        "ablation_name": study_name,
+        "data_path": _relative_path(data_path),
         "feature_set": feature_set_name,
         "features": features,
         "n_features": len(features),
@@ -145,14 +172,15 @@ def _assert_identical_splits(manifests: dict[str, dict]) -> None:
                 )
 
 
-def summarize_if_complete() -> Path | None:
+def summarize_if_complete(study_name: str) -> Path | None:
+    artifact_root, result_root = _study_roots(study_name)
     required = {
         name: {
-            "mlp": ARTIFACT_ROOT / name / "mlp_metrics.json",
-            "baseline": ARTIFACT_ROOT / name / "linear_baseline_metrics.json",
-            "manifest": ARTIFACT_ROOT / name / "split_manifest.json",
-            "config": ARTIFACT_ROOT / name / "model_config.json",
-            "history": ARTIFACT_ROOT / name / "training_history.json",
+            "mlp": artifact_root / name / "mlp_metrics.json",
+            "baseline": artifact_root / name / "linear_baseline_metrics.json",
+            "manifest": artifact_root / name / "split_manifest.json",
+            "config": artifact_root / name / "model_config.json",
+            "history": artifact_root / name / "training_history.json",
         }
         for name in FEATURE_SETS
     }
@@ -164,7 +192,7 @@ def summarize_if_complete() -> Path | None:
         logger.info("两组完整产物尚未齐备，暂不生成总表。")
         return None
 
-    RESULT_ROOT.mkdir(parents=True, exist_ok=True)
+    result_root.mkdir(parents=True, exist_ok=True)
     loaded = {
         name: {kind: _load_json(path) for kind, path in files.items()}
         for name, files in required.items()
@@ -211,7 +239,7 @@ def summarize_if_complete() -> Path | None:
     }
 
     comparison = {
-        "study": ABLATION_NAME,
+        "study": study_name,
         "split_method": "original_ID",
         "random_seed": manifests["core_6"]["random_seed"],
         "joint_r2_definition": "mean(R2_residual_u, R2_residual_v), float64",
@@ -226,13 +254,13 @@ def summarize_if_complete() -> Path | None:
         "results": rows,
         "delta": delta,
     }
-    comparison_path = RESULT_ROOT / "comparison.json"
+    comparison_path = result_root / "comparison.json"
     comparison_path.write_text(
         json.dumps(comparison, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
-    csv_path = RESULT_ROOT / "comparison.csv"
+    csv_path = result_root / "comparison.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(
             file,
@@ -242,7 +270,7 @@ def summarize_if_complete() -> Path | None:
         writer.writeheader()
         writer.writerows(rows)
 
-    report_path = RESULT_ROOT / "README.md"
+    report_path = result_root / "README.md"
     better = "full_9" if full["test_rmse"] < core["test_rmse"] else "core_6"
     report_path.write_text(
         f"""# Minimal Feature Ablation: core_6 vs full_9
@@ -277,12 +305,15 @@ Joint R2 is calculated in float64 as the arithmetic mean of the separate
 """,
         encoding="utf-8",
     )
-    _plot_comparison(loaded)
+    _plot_comparison(loaded, result_root)
     logger.info("消融总表已保存: %s", report_path)
     return report_path
 
 
-def _plot_comparison(loaded: dict[str, dict]) -> None:
+def _plot_comparison(
+    loaded: dict[str, dict],
+    result_root: Path,
+) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
     colors = {"core_6": "tab:blue", "full_9": "tab:orange"}
     for name in FEATURE_SETS:
@@ -312,7 +343,7 @@ def _plot_comparison(loaded: dict[str, dict]) -> None:
         axis.legend()
     fig.tight_layout()
     fig.savefig(
-        RESULT_ROOT / "ablation_comparison.png",
+        result_root / "ablation_comparison.png",
         dpi=150,
         bbox_inches="tight",
     )
@@ -328,19 +359,34 @@ def main() -> None:
     )
     parser.add_argument("--full", action="store_true")
     parser.add_argument("--sample-size", type=int, default=20)
+    parser.add_argument(
+        "--data-path",
+        type=Path,
+        default=PROJECT_ROOT
+        / "processed_data"
+        / "trajectories_with_all_features.pkl",
+        help="输入轨迹 Pickle；默认使用 v1 数据集。",
+    )
+    parser.add_argument(
+        "--study-name",
+        default=ABLATION_NAME,
+        help="trained_models/ 和 results/ 下的独立研究目录名。",
+    )
     args = parser.parse_args()
 
     if args.feature_set == "summarize":
         logging.basicConfig(level=logging.INFO)
-        summarize_if_complete()
+        summarize_if_complete(args.study_name)
         return
 
     run_experiment(
         args.feature_set,
         sample_mode=not args.full,
         sample_size=args.sample_size,
+        data_path=args.data_path,
+        study_name=args.study_name,
     )
-    summarize_if_complete()
+    summarize_if_complete(args.study_name)
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
