@@ -56,10 +56,11 @@ DEFAULT_WORK_DIR = (
     PROJECT_ROOT / "processed_data" / "wave_direction_circular_v2_work"
 )
 
-WORK_SCHEMA_VERSION = 2
+WORK_SCHEMA_VERSION = 3
 DIAGNOSTIC_SCHEMA_VERSION = 1
-ALGORITHM_VERSION = "mwd_circular_local_month_v2"
+ALGORITHM_VERSION = "mwd_circular_exact_hour_local_month_v3"
 PATCH_DTYPE = np.dtype("float64")
+WINDOW_PADDING_SEQUENCE = (1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0)
 WAVE_DIRECTION_COLUMNS = (
     "era5_wave_dir_sin",
     "era5_wave_dir_cos",
@@ -96,6 +97,16 @@ class MonthGrid:
     latitudes: np.ndarray
     longitudes: np.ndarray
     mwd: np.ndarray
+
+
+@dataclass(frozen=True)
+class TrajectoryMonthResult:
+    """单条轨迹单月插值结果及缺测扩窗诊断。"""
+
+    sin: np.ndarray
+    cos: np.ndarray
+    padding_degrees: float
+    initial_all_nan_time_count: int
 
 
 def _utc_now() -> str:
@@ -355,6 +366,7 @@ def _local_mwd_window(
     query_times: np.ndarray,
     query_latitudes: np.ndarray,
     query_longitudes: np.ndarray,
+    padding_degrees: float = 1.0,
 ) -> tuple[xr.DataArray, np.ndarray]:
     """
     按整条轨迹的空间包围盒裁剪当月内存网格，保持 v1 的填补作用域。
@@ -366,11 +378,11 @@ def _local_mwd_window(
         raise ValueError("轨迹纬度包含非有限值。")
     lat_min = max(
         float(grid.latitudes[0]),
-        float(trajectory_latitudes.min() - 1.0),
+        float(trajectory_latitudes.min() - padding_degrees),
     )
     lat_max = min(
         float(grid.latitudes[-1]),
-        float(trajectory_latitudes.max() + 1.0),
+        float(trajectory_latitudes.max() + padding_degrees),
     )
     lat_start = max(
         0,
@@ -382,7 +394,8 @@ def _local_mwd_window(
     )
 
     lon_start, lon_end = _minimal_longitude_arc(
-        trajectory["longitude"].to_numpy(dtype=np.float64)
+        trajectory["longitude"].to_numpy(dtype=np.float64),
+        padding_degrees=padding_degrees,
     )
     candidate_longitudes = np.concatenate(
         [
@@ -455,6 +468,92 @@ def _local_mwd_window(
     return local, adjusted_query_longitudes
 
 
+def bilinear_interpolate_exact_times(
+    values: np.ndarray,
+    *,
+    grid_times: np.ndarray,
+    grid_latitudes: np.ndarray,
+    grid_longitudes: np.ndarray,
+    query_times: np.ndarray,
+    query_latitudes: np.ndarray,
+    query_longitudes: np.ndarray,
+) -> np.ndarray:
+    """
+    精确选择 ERA5 整点时间层，仅执行二维双线性空间插值。
+
+    轨迹时间均为整点。显式选择时间层可避免相邻全 NaN 海冰时次通过
+    三维线性插值污染本来有效的当前时次。
+    """
+    query_times = np.asarray(query_times, dtype="datetime64[ns]")
+    grid_times = np.asarray(grid_times, dtype="datetime64[ns]")
+    query_latitudes = np.asarray(query_latitudes, dtype=np.float64)
+    query_longitudes = np.asarray(query_longitudes, dtype=np.float64)
+    grid_latitudes = np.asarray(grid_latitudes, dtype=np.float64)
+    grid_longitudes = np.asarray(grid_longitudes, dtype=np.float64)
+
+    if values.shape != (
+        len(grid_times),
+        len(grid_latitudes),
+        len(grid_longitudes),
+    ):
+        raise ValueError("方向分量 shape 与局部网格坐标不一致。")
+    if not (
+        len(query_times)
+        == len(query_latitudes)
+        == len(query_longitudes)
+    ):
+        raise ValueError("查询 time/latitude/longitude 长度不一致。")
+
+    time_indices = np.searchsorted(grid_times, query_times)
+    valid_time_index = time_indices < len(grid_times)
+    matched_time = np.zeros(len(query_times), dtype=bool)
+    matched_time[valid_time_index] = (
+        grid_times[time_indices[valid_time_index]]
+        == query_times[valid_time_index]
+    )
+    if not matched_time.all():
+        examples = query_times[~matched_time][:10].astype(str).tolist()
+        raise ValueError(
+            "轨迹时间未精确匹配 ERA5 整点时次，不能执行双线性插值。"
+            f"示例: {examples}"
+        )
+
+    def brackets(
+        grid: np.ndarray,
+        query: np.ndarray,
+        axis_name: str,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if np.any(query < grid[0]) or np.any(query > grid[-1]):
+            raise ValueError(
+                f"{axis_name} 查询超出局部网格范围: "
+                f"query=[{query.min()}, {query.max()}], "
+                f"grid=[{grid[0]}, {grid[-1]}]"
+            )
+        upper = np.searchsorted(grid, query, side="right")
+        upper = np.clip(upper, 1, len(grid) - 1)
+        lower = upper - 1
+        weight = (query - grid[lower]) / (grid[upper] - grid[lower])
+        return lower, upper, weight
+
+    y0, y1, wy = brackets(
+        grid_latitudes,
+        query_latitudes,
+        "latitude",
+    )
+    x0, x1, wx = brackets(
+        grid_longitudes,
+        query_longitudes,
+        "longitude",
+    )
+    value_00 = values[time_indices, y0, x0]
+    value_01 = values[time_indices, y0, x1]
+    value_10 = values[time_indices, y1, x0]
+    value_11 = values[time_indices, y1, x1]
+    lower_lat = value_00 * (1.0 - wx) + value_01 * wx
+    upper_lat = value_10 * (1.0 - wx) + value_11 * wx
+    return lower_lat * (1.0 - wy) + upper_lat * wy
+
+
 def interpolate_trajectory_month(
     *,
     grid: MonthGrid,
@@ -462,30 +561,66 @@ def interpolate_trajectory_month(
     query_times: np.ndarray,
     query_latitudes: np.ndarray,
     query_longitudes: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> TrajectoryMonthResult:
     """按 v1 的局部海岸填补规则，圆周插值一条轨迹的一个月份。"""
-    local_mwd, adjusted_longitudes = _local_mwd_window(
-        grid,
-        trajectory,
-        query_times,
-        query_latitudes,
-        query_longitudes,
-    )
+    local_mwd = None
+    adjusted_longitudes = None
+    initial_all_nan_time_count = 0
+    selected_padding = WINDOW_PADDING_SEQUENCE[-1]
+    for padding_degrees in WINDOW_PADDING_SEQUENCE:
+        candidate, candidate_longitudes = _local_mwd_window(
+            grid,
+            trajectory,
+            query_times,
+            query_latitudes,
+            query_longitudes,
+            padding_degrees=padding_degrees,
+        )
+        time_indices = np.searchsorted(
+            candidate.time.values,
+            np.asarray(query_times, dtype="datetime64[ns]"),
+        )
+        unique_time_indices = np.unique(time_indices)
+        all_nan_time_count = sum(
+            not np.isfinite(candidate.values[index]).any()
+            for index in unique_time_indices
+        )
+        if padding_degrees == WINDOW_PADDING_SEQUENCE[0]:
+            initial_all_nan_time_count = int(all_nan_time_count)
+        if all_nan_time_count == 0:
+            local_mwd = candidate
+            adjusted_longitudes = candidate_longitudes
+            selected_padding = padding_degrees
+            break
+
+    if local_mwd is None or adjusted_longitudes is None:
+        raise RuntimeError(
+            "扩大到 64 度后，查询时次的 mwd 局部网格仍全部缺测。"
+        )
+
     mwd_sin, mwd_cos = coast_fill_mwd_components(local_mwd)
-    coordinates = {
-        "time": xr.DataArray(query_times, dims="points"),
-        "lat": xr.DataArray(query_latitudes, dims="points"),
-        "lon": xr.DataArray(adjusted_longitudes, dims="points"),
+    interpolation_args = {
+        "grid_times": local_mwd.time.values,
+        "grid_latitudes": local_mwd.lat.values,
+        "grid_longitudes": local_mwd.lon.values,
+        "query_times": query_times,
+        "query_latitudes": query_latitudes,
+        "query_longitudes": adjusted_longitudes,
     }
-    interpolated_sin = mwd_sin.interp(
-        **coordinates,
-        method="linear",
-    ).values
-    interpolated_cos = mwd_cos.interp(
-        **coordinates,
-        method="linear",
-    ).values
-    return interpolated_sin, interpolated_cos
+    interpolated_sin = bilinear_interpolate_exact_times(
+        mwd_sin.values,
+        **interpolation_args,
+    )
+    interpolated_cos = bilinear_interpolate_exact_times(
+        mwd_cos.values,
+        **interpolation_args,
+    )
+    return TrajectoryMonthResult(
+        sin=interpolated_sin,
+        cos=interpolated_cos,
+        padding_degrees=selected_padding,
+        initial_all_nan_time_count=initial_all_nan_time_count,
+    )
 
 
 def _month_token(values: np.ndarray) -> np.ndarray:
@@ -631,17 +766,42 @@ def process_month(
     interpolated_sin = np.empty(len(batch.times), dtype=np.float64)
     interpolated_cos = np.empty(len(batch.times), dtype=np.float64)
     source_indices = np.unique(batch.source_indices)
+    expanded_window_chunks = 0
+    expanded_window_points = 0
+    maximum_padding_degrees = WINDOW_PADDING_SEQUENCE[0]
+    expanded_window_examples = []
     for source_index in source_indices:
         positions = np.flatnonzero(batch.source_indices == source_index)
-        local_sin, local_cos = interpolate_trajectory_month(
+        local_result = interpolate_trajectory_month(
             grid=grid,
             trajectory=trajectories[int(source_index)],
             query_times=batch.times[positions],
             query_latitudes=batch.latitudes[positions],
             query_longitudes=batch.longitudes[positions],
         )
-        interpolated_sin[positions] = local_sin
-        interpolated_cos[positions] = local_cos
+        interpolated_sin[positions] = local_result.sin
+        interpolated_cos[positions] = local_result.cos
+        maximum_padding_degrees = max(
+            maximum_padding_degrees,
+            local_result.padding_degrees,
+        )
+        if local_result.padding_degrees > WINDOW_PADDING_SEQUENCE[0]:
+            expanded_window_chunks += 1
+            expanded_window_points += int(len(positions))
+            if len(expanded_window_examples) < 20:
+                expanded_window_examples.append(
+                    {
+                        "source_trajectory_index": int(source_index),
+                        "month": month,
+                        "points": int(len(positions)),
+                        "initial_all_nan_time_count": (
+                            local_result.initial_all_nan_time_count
+                        ),
+                        "padding_degrees": (
+                            local_result.padding_degrees
+                        ),
+                    }
+                )
 
     direction = normalize_direction_components(
         interpolated_sin,
@@ -718,6 +878,10 @@ def process_month(
     return {
         "points": int(len(batch.times)),
         "trajectory_month_chunks": int(len(source_indices)),
+        "expanded_window_chunks": expanded_window_chunks,
+        "expanded_window_points": expanded_window_points,
+        "maximum_padding_degrees": maximum_padding_degrees,
+        "expanded_window_examples": expanded_window_examples,
         "load_seconds": load_seconds,
         "interpolation_seconds": interpolation_seconds,
         "total_seconds": perf_counter() - started,
@@ -867,6 +1031,11 @@ def _aggregate_month_statistics(
         examples.extend(item.get("near_zero_examples", []))
         if len(examples) >= 20:
             break
+    expanded_examples = []
+    for item in stats:
+        expanded_examples.extend(item.get("expanded_window_examples", []))
+        if len(expanded_examples) >= 20:
+            break
     return {
         "finite_resultant_count": sum(
             item.get("finite_resultant_count", 0) for item in stats
@@ -882,6 +1051,23 @@ def _aggregate_month_statistics(
         ),
         "near_zero_examples": examples[:20],
         "near_zero_threshold": NEAR_ZERO_THRESHOLD,
+        "expanded_window_chunks": sum(
+            item.get("expanded_window_chunks", 0) for item in stats
+        ),
+        "expanded_window_points": sum(
+            item.get("expanded_window_points", 0) for item in stats
+        ),
+        "maximum_padding_degrees": max(
+            (
+                item.get(
+                    "maximum_padding_degrees",
+                    WINDOW_PADDING_SEQUENCE[0],
+                )
+                for item in stats
+            ),
+            default=WINDOW_PADDING_SEQUENCE[0],
+        ),
+        "expanded_window_examples": expanded_examples[:20],
     }
 
 

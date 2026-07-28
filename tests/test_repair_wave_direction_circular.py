@@ -19,6 +19,7 @@ from repair_wave_direction_circular import (  # noqa: E402
     MonthGrid,
     _minimal_longitude_arc,
     _unwrap_longitudes,
+    bilinear_interpolate_exact_times,
     build_offsets,
     collect_month_queries,
     initialize_or_resume_work,
@@ -27,6 +28,29 @@ from repair_wave_direction_circular import (  # noqa: E402
 
 
 class RepairWaveDirectionTest(unittest.TestCase):
+    def test_exact_time_bilinear_ignores_adjacent_nan_slice(self) -> None:
+        times = np.asarray(
+            ["2020-01-01T00:00", "2020-01-01T01:00"],
+            dtype="datetime64[ns]",
+        )
+        values = np.asarray(
+            [
+                [[0.0, 2.0], [4.0, 6.0]],
+                [[np.nan, np.nan], [np.nan, np.nan]],
+            ],
+            dtype=np.float32,
+        )
+        result = bilinear_interpolate_exact_times(
+            values,
+            grid_times=times,
+            grid_latitudes=np.asarray([0.0, 1.0]),
+            grid_longitudes=np.asarray([10.0, 11.0]),
+            query_times=times[:1],
+            query_latitudes=np.asarray([0.5]),
+            query_longitudes=np.asarray([10.5]),
+        )
+        self.assertAlmostEqual(float(result[0]), 3.0)
+
     def test_longitude_window_unwraps_dateline_continuously(self) -> None:
         start, end = _minimal_longitude_arc(
             np.asarray([359.5, 0.5]),
@@ -63,7 +87,7 @@ class RepairWaveDirectionTest(unittest.TestCase):
             }
         )
 
-        sin_values, cos_values = interpolate_trajectory_month(
+        result = interpolate_trajectory_month(
             grid=grid,
             trajectory=trajectory,
             query_times=np.asarray(
@@ -74,8 +98,39 @@ class RepairWaveDirectionTest(unittest.TestCase):
             query_longitudes=np.asarray([359.75, 0.25]),
         )
 
-        self.assertTrue(np.all(np.abs(sin_values) < 0.03))
-        self.assertTrue(np.all(cos_values > 0.99))
+        self.assertTrue(np.all(np.abs(result.sin) < 0.03))
+        self.assertTrue(np.all(result.cos > 0.99))
+        self.assertEqual(result.padding_degrees, 1.0)
+
+    def test_all_nan_local_window_expands_to_valid_mwd(self) -> None:
+        times = np.asarray(
+            ["2020-01-01T00:00", "2020-01-01T01:00"],
+            dtype="datetime64[ns]",
+        )
+        mwd = np.full((2, 5, 5), np.nan, dtype=np.float32)
+        mwd[:, 4, 2] = 90.0
+        grid = MonthGrid(
+            times=times,
+            latitudes=np.asarray([-2.0, -1.0, 0.0, 1.0, 2.0]),
+            longitudes=np.asarray([0.0, 1.0, 2.0, 3.0, 4.0]),
+            mwd=mwd,
+        )
+        trajectory = pd.DataFrame(
+            {"latitude": [0.0], "longitude": [2.0]}
+        )
+
+        result = interpolate_trajectory_month(
+            grid=grid,
+            trajectory=trajectory,
+            query_times=times[:1],
+            query_latitudes=np.asarray([0.0]),
+            query_longitudes=np.asarray([2.0]),
+        )
+
+        self.assertEqual(result.padding_degrees, 2.0)
+        self.assertEqual(result.initial_all_nan_time_count, 1)
+        self.assertAlmostEqual(float(result.sin[0]), 1.0, places=6)
+        self.assertAlmostEqual(float(result.cos[0]), 0.0, places=6)
 
     def test_collect_month_queries_preserves_flat_positions(self) -> None:
         columns = {
