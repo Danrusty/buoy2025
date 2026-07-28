@@ -4,11 +4,129 @@ import numpy as np
 import os
 import pickle
 import glob
+import gc
+import json
 from tqdm import tqdm
 from scipy.interpolate import NearestNDInterpolator
 
+from wave_direction import (
+    NEAR_ZERO_THRESHOLD,
+    coast_fill_mwd_components,
+    normalize_direction_components,
+)
 
-def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sample_mode=False, sample_size=10):
+
+def _wave_angles_degrees(trajectory):
+    """从现有 sin/cos 特征恢复 0~360 度角，仅用于 v1/v2 诊断比较。"""
+    required = {'era5_wave_dir_sin', 'era5_wave_dir_cos'}
+    if not required.issubset(trajectory.columns):
+        return None
+    angles = np.rad2deg(np.arctan2(
+        trajectory['era5_wave_dir_sin'].to_numpy(),
+        trajectory['era5_wave_dir_cos'].to_numpy(),
+    ))
+    return np.mod(angles, 360.0)
+
+
+def select_representative_trajectories(
+    trajectories,
+    sample_size=50,
+    random_seed=42,
+):
+    """选择长度分层、波向边界、波向跳变和固定随机轨迹的去重组合。"""
+    if sample_size >= len(trajectories):
+        return list(trajectories), list(range(len(trajectories))), {
+            str(index): ['all'] for index in range(len(trajectories))
+        }
+
+    lengths = np.asarray([len(trajectory) for trajectory in trajectories])
+    if sample_size <= 10:
+        quantile_targets = np.quantile(lengths, [0.0, 0.5, 1.0])
+        direction_group_size = 1
+    else:
+        group_size = max(1, sample_size // 5)
+        quantile_targets = np.quantile(
+            lengths,
+            np.linspace(0.0, 1.0, group_size),
+        )
+        direction_group_size = group_size
+    length_quantiles = []
+    for target in quantile_targets:
+        candidates = np.argsort(np.abs(lengths - target))
+        selected = next(
+            int(index) for index in candidates
+            if int(index) not in length_quantiles
+        )
+        length_quantiles.append(selected)
+
+    boundary_scores = np.full(len(trajectories), -np.inf)
+    jump_scores = np.full(len(trajectories), -np.inf)
+    for index, trajectory in enumerate(trajectories):
+        angles = _wave_angles_degrees(trajectory)
+        if angles is None or len(angles) == 0:
+            continue
+        distance_to_north = np.minimum(angles, 360.0 - angles)
+        boundary_scores[index] = float(np.mean(distance_to_north <= 10.0))
+        if len(angles) > 1:
+            jump_scores[index] = float(np.max(np.abs(np.diff(angles))))
+
+    boundary = np.argsort(
+        boundary_scores
+    )[-direction_group_size:][::-1].tolist()
+    jumps = np.argsort(
+        jump_scores
+    )[-direction_group_size:][::-1].tolist()
+
+    reasons = {}
+
+    def add(indices, reason):
+        for index in indices:
+            reasons.setdefault(int(index), []).append(reason)
+
+    add(length_quantiles, 'length_quantile')
+    add(boundary, 'near_0_360')
+    add(jumps, 'large_angle_jump')
+
+    rng = np.random.default_rng(random_seed)
+    remaining = [
+        index for index in range(len(trajectories))
+        if index not in reasons
+    ]
+    rng.shuffle(remaining)
+    add(remaining[: max(0, sample_size - len(reasons))], 'random')
+
+    # 组间可能重叠；继续用固定随机序列补足到准确的 sample_size。
+    if len(reasons) < sample_size:
+        fallback = [
+            index for index in range(len(trajectories))
+            if index not in reasons
+        ]
+        rng.shuffle(fallback)
+        add(fallback[: sample_size - len(reasons)], 'random_fill')
+
+    selected_indices = sorted(reasons)[:sample_size]
+    selected = [trajectories[index] for index in selected_indices]
+    selected_reasons = {
+        str(index): reasons[index] for index in selected_indices
+    }
+    return selected, selected_indices, selected_reasons
+
+
+def _circular_angle_difference_degrees(old_sin, old_cos, new_sin, new_cos):
+    """返回两个单位方向向量之间的最短夹角，范围 0~180 度。"""
+    cross = old_cos * new_sin - old_sin * new_cos
+    dot = old_sin * new_sin + old_cos * new_cos
+    return np.abs(np.rad2deg(np.arctan2(cross, dot)))
+
+
+def match_era5_wave(
+    processed_buoy_file_with_wind,
+    era5_wave_dir,
+    output_dir,
+    sample_mode=False,
+    sample_size=10,
+    output_filename=None,
+):
     """
     Matches ERA5 reanalysis wave data with buoy trajectories using serial processing.
 
@@ -24,8 +142,8 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
         processed_buoy_file_with_wind (str): Path to trajectories with wind data
         era5_wave_dir (str): Directory containing ERA5 wave NetCDF files
         output_dir (str): Directory to save output
-        sample_mode (bool): If True, only process shortest trajectories for quick validation
-        sample_size (int): Number of shortest trajectories to process in sample mode
+        sample_mode (bool): 是否只处理分层代表性轨迹用于快速验证
+        sample_size (int): 采样模式下的代表性轨迹数量
     """
     mode_info = "【采样验证模式】" if sample_mode else "【完整处理模式】"
     print(f"--- 开始匹配ERA5波浪数据 {mode_info} (串行处理) ---")
@@ -44,11 +162,26 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
 
     print(f"加载了 {len(trajectories_with_wind)} 段已匹配海流和风场的轨迹。")
 
-    # Sample mode: select shortest trajectories for quick validation
+    selected_indices = list(range(len(trajectories_with_wind)))
+    selected_reasons = {
+        str(index): ['full'] for index in selected_indices
+    }
+
+    # Sample mode: select representative trajectories for validation.
     if sample_mode:
-        trajectories_with_wind = sorted(trajectories_with_wind, key=len)
-        trajectories_with_wind = trajectories_with_wind[:sample_size]
-        print(f"采样模式: 选择最短的 {len(trajectories_with_wind)} 条轨迹，长度: {[len(t) for t in trajectories_with_wind]}")
+        (
+            trajectories_with_wind,
+            selected_indices,
+            selected_reasons,
+        ) = select_representative_trajectories(
+            trajectories_with_wind,
+            sample_size=sample_size,
+        )
+        gc.collect()
+        print(
+            f"采样模式: 选择 {len(trajectories_with_wind)} 条代表性轨迹，"
+            f"原始索引: {selected_indices}"
+        )
 
     # --- 步骤 2/4: 检查ERA5波浪数据 ---
     print("步骤 2/4: 检查ERA5波浪数据...")
@@ -74,6 +207,14 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
         'all_nan': 0,
         'too_short': 0,
         'success': 0
+    }
+    circular_stats = {
+        'near_zero_count': 0,
+        'below_0_1_count': 0,
+        'minimum_resultant_length': float('inf'),
+        'finite_resultant_count': 0,
+        'near_zero_examples': [],
+        'angle_differences': [],
     }
 
     for traj_idx, traj_df in enumerate(tqdm(trajectories_with_wind, desc="处理轨迹中")):
@@ -246,7 +387,16 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
         lons_360 = (lons + 360) % 360
 
         try:
-            wave_vars = ['swh', 'mwp', 'mwd']
+            scalar_wave_vars = ['swh', 'mwp']
+            old_direction = None
+            if {
+                'era5_wave_dir_sin',
+                'era5_wave_dir_cos',
+            }.issubset(traj_df.columns):
+                old_direction = (
+                    traj_df['era5_wave_dir_sin'].to_numpy(copy=True),
+                    traj_df['era5_wave_dir_cos'].to_numpy(copy=True),
+                )
 
             # === Coast-fill：海岸外推 ===
             # ERA5 波浪模型只在海洋格点有值，陆地/海冰格点为 NaN。
@@ -264,7 +414,7 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
                 ds_era5_wave.lat.values, ds_era5_wave.lon.values, indexing='ij'
             )
             coast_filled = {}
-            for var in wave_vars:
+            for var in scalar_wave_vars:
                 data_orig = ds_era5_wave[var].values  # shape: (time, lat, lon)
                 data_filled = data_orig.copy()
                 for t_idx in range(data_orig.shape[0]):
@@ -287,11 +437,18 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
                     dims=ds_era5_wave[var].dims,
                     coords=ds_era5_wave[var].coords
                 )
+
+            # mwd 是圆周变量，必须先编码为单位向量分量，再做缺测填补和插值。
+            mwd_sin, mwd_cos = coast_fill_mwd_components(
+                ds_era5_wave['mwd']
+            )
+            coast_filled['mwd_sin'] = mwd_sin
+            coast_filled['mwd_cos'] = mwd_cos
             ds_era5_wave = xr.Dataset(coast_filled)
 
             # === 普通线性插值（coast-fill 后无 NaN 邻域，可直接插值）===
             wave_results = {}
-            for var in wave_vars:
+            for var in ['swh', 'mwp', 'mwd_sin', 'mwd_cos']:
                 interp_result = ds_era5_wave[var].interp(
                     lat=lats, lon=lons_360, time=times, method='linear'
                 )
@@ -301,11 +458,64 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
             traj_df['era5_swh'] = wave_results['swh']
             traj_df['era5_mwp'] = wave_results['mwp']
 
-            # Feature engineering: encode periodic wave direction into sine and cosine components
-            mwd_deg = wave_results['mwd']
-            mwd_rad = np.deg2rad(mwd_deg)
-            traj_df['era5_wave_dir_sin'] = np.sin(mwd_rad)
-            traj_df['era5_wave_dir_cos'] = np.cos(mwd_rad)
+            direction = normalize_direction_components(
+                wave_results['mwd_sin'],
+                wave_results['mwd_cos'],
+                near_zero_threshold=NEAR_ZERO_THRESHOLD,
+            )
+            traj_df['era5_wave_dir_sin'] = direction.sin
+            traj_df['era5_wave_dir_cos'] = direction.cos
+
+            finite_resultant = direction.resultant_length[
+                np.isfinite(direction.resultant_length)
+            ]
+            if finite_resultant.size:
+                circular_stats['finite_resultant_count'] += int(
+                    finite_resultant.size
+                )
+                circular_stats['minimum_resultant_length'] = min(
+                    circular_stats['minimum_resultant_length'],
+                    float(finite_resultant.min()),
+                )
+                circular_stats['below_0_1_count'] += int(
+                    np.count_nonzero(finite_resultant < 0.1)
+                )
+
+            near_zero_positions = np.flatnonzero(direction.near_zero)
+            circular_stats['near_zero_count'] += int(
+                near_zero_positions.size
+            )
+            source_trajectory_index = selected_indices[traj_idx]
+            for row_position in near_zero_positions:
+                if len(circular_stats['near_zero_examples']) >= 20:
+                    break
+                row = traj_df.iloc[int(row_position)]
+                circular_stats['near_zero_examples'].append({
+                    'source_trajectory_index': int(source_trajectory_index),
+                    'row_position': int(row_position),
+                    'original_ID': str(row.get('original_ID', row.get('ID'))),
+                    'time': str(row['time']),
+                    'latitude': float(row['latitude']),
+                    'longitude': float(row['longitude']),
+                    'resultant_length': float(
+                        direction.resultant_length[row_position]
+                    ),
+                })
+
+            if old_direction is not None:
+                angle_difference = _circular_angle_difference_degrees(
+                    old_direction[0],
+                    old_direction[1],
+                    direction.sin,
+                    direction.cos,
+                )
+                finite_difference = angle_difference[
+                    np.isfinite(angle_difference)
+                ]
+                if finite_difference.size:
+                    circular_stats['angle_differences'].append(
+                        finite_difference.astype(np.float32, copy=False)
+                    )
 
             # Check interpolation results
             n_nan = int(np.isnan(wave_results['swh']).sum())
@@ -317,7 +527,15 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
             orig_lat_max = traj_df['latitude'].max()
             orig_lon_min = traj_df['longitude'].min()
             orig_lon_max = traj_df['longitude'].max()
-            traj_df.dropna(subset=['era5_swh', 'era5_mwp', 'era5_wave_dir_sin'], inplace=True)
+            traj_df.dropna(
+                subset=[
+                    'era5_swh',
+                    'era5_mwp',
+                    'era5_wave_dir_sin',
+                    'era5_wave_dir_cos',
+                ],
+                inplace=True,
+            )
 
             if len(traj_df) == 0:
                 fail_stats['all_nan'] += 1
@@ -381,18 +599,91 @@ def match_era5_wave(processed_buoy_file_with_wind, era5_wave_dir, output_dir, sa
     print(f"总失败: {sum(fail_stats.values()) - fail_stats['success']}")
     print("================\n")
 
+    angle_difference_summary = None
+    if circular_stats['angle_differences']:
+        angle_differences = np.concatenate(
+            circular_stats.pop('angle_differences')
+        )
+        angle_difference_summary = {
+            'finite_count': int(angle_differences.size),
+            'changed_over_1_degree': int(np.count_nonzero(
+                angle_differences > 1.0
+            )),
+            'changed_over_10_degrees': int(np.count_nonzero(
+                angle_differences > 10.0
+            )),
+            'p50_degrees': float(np.percentile(angle_differences, 50)),
+            'p90_degrees': float(np.percentile(angle_differences, 90)),
+            'p99_degrees': float(np.percentile(angle_differences, 99)),
+            'maximum_degrees': float(angle_differences.max()),
+        }
+    else:
+        circular_stats.pop('angle_differences')
+
+    if not np.isfinite(circular_stats['minimum_resultant_length']):
+        circular_stats['minimum_resultant_length'] = None
+    circular_stats['near_zero_threshold'] = NEAR_ZERO_THRESHOLD
+    circular_stats['angle_difference_v1_vs_v2'] = angle_difference_summary
+
+    print("=== 波向圆周插值统计 ===")
+    print(f"有限结果数: {circular_stats['finite_resultant_count']}")
+    print(
+        "最小合成向量长度: "
+        f"{circular_stats['minimum_resultant_length']}"
+    )
+    print(f"r < 0.1 数量: {circular_stats['below_0_1_count']}")
+    print(
+        f"r < {NEAR_ZERO_THRESHOLD:g} 近零数量: "
+        f"{circular_stats['near_zero_count']}"
+    )
+    if angle_difference_summary:
+        print(f"v1/v2 角度差: {angle_difference_summary}")
+    print("==========================\n")
+
     # --- 步骤 4/4: 保存最终结果 ---
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    if sample_mode:
-        output_filename = os.path.join(output_dir, 'trajectories_with_all_features_samples.pkl')
-    else:
-        output_filename = os.path.join(output_dir, 'trajectories_with_all_features.pkl')
+    if output_filename is None:
+        if sample_mode:
+            filename = (
+                'trajectories_with_all_features_circular_mwd_v2_samples.pkl'
+            )
+        else:
+            filename = 'trajectories_with_all_features_circular_mwd_v2.pkl'
+        output_filename = os.path.join(output_dir, filename)
+    elif not os.path.isabs(output_filename):
+        output_filename = os.path.join(output_dir, output_filename)
 
     print(f"\n步骤 4/4: 将包含所有特征的最终数据集保存到: {output_filename}")
     with open(output_filename, 'wb') as f:
         pickle.dump(final_trajectories, f)
+
+    diagnostics_path = os.path.splitext(output_filename)[0] + '_diagnostics.json'
+    diagnostics = {
+        'schema_version': 1,
+        'direction_convention': {
+            'source': 'ERA5 mean_wave_direction',
+            'meaning': 'coming-from',
+            'zero_direction': 'north',
+            'positive_rotation': 'clockwise',
+            'add_180_degrees': False,
+            'sin_definition': 'sin(deg2rad(mwd))',
+            'cos_definition': 'cos(deg2rad(mwd))',
+        },
+        'sample_mode': bool(sample_mode),
+        'sample_size': int(len(trajectories_with_wind)),
+        'selected_source_indices': [
+            int(index) for index in selected_indices
+        ],
+        'selection_reasons': selected_reasons,
+        'failure_statistics': fail_stats,
+        'circular_statistics': circular_stats,
+        'output_file': os.path.abspath(output_filename),
+    }
+    with open(diagnostics_path, 'w', encoding='utf-8') as file:
+        json.dump(diagnostics, file, ensure_ascii=False, indent=2)
+    print(f"波向诊断报告已保存: {diagnostics_path}")
 
     print("\n" + "=" * 80)
     print("--- 所有数据预处理和特征工程步骤已全部完成！---")
