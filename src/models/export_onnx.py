@@ -469,10 +469,17 @@ def build_release(
             raise ValueError(
                 f"v2 数据集大小不匹配: {actual_size} != {expected_size}"
             )
+        actual_sha256 = _sha256(dataset_path)
+        expected_sha256 = file_integrity["output_sha256"]
+        if actual_sha256 != expected_sha256:
+            raise ValueError(
+                "v2 数据集 SHA256 不匹配: "
+                f"{actual_sha256} != {expected_sha256}"
+            )
         dataset_provenance = {
             "filename": dataset_path.name,
             "size_bytes": actual_size,
-            "sha256": file_integrity["output_sha256"],
+            "sha256": actual_sha256,
             "diagnostics_filename": data_diagnostics_path.name,
             "diagnostics_sha256": _sha256(data_diagnostics_path),
             "generation_algorithm": processing["algorithm_version"],
@@ -486,6 +493,7 @@ def build_release(
         "scientific_status": "frozen_core_6_selected_by_ablation",
         "deployment_status": "candidate_pending_windows_validation",
         "training_code_git_commit": training_commit or "unknown",
+        "training_run": str(run_dir.resolve().relative_to(PROJECT_ROOT)),
         "split_method": "original_ID",
         "split_random_seed": split_manifest["random_seed"],
         "split_counts": {

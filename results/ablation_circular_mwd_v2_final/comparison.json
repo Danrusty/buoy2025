@@ -1,5 +1,5 @@
 {
-  "study": "ablation_circular_mwd_v2",
+  "study": "ablation_circular_mwd_v2_final",
   "split_method": "original_ID",
   "random_seed": 42,
   "joint_r2_definition": "mean(R2_residual_u, R2_residual_v), float64",

@@ -11,11 +11,14 @@
 - Fortran -> C++ -> ONNX inference: passed
 - Maximum absolute difference from `expected_output.csv`: `1.4901e-08`
 - Required tolerance: `< 1e-4`
+- Validated ONNX SHA256:
+  `787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941`
 
 Validated Windows staging directory:
 
 `D:\OilspillModel\OilSpillModel\ModelRun\release_onnx\wdf_core6_circular_mwd_v2`
 
-The existing `onnx_active` directory was not modified during validation.
-Switching the oil-spill model to this release remains an explicit
-Windows-side integration step.
+The final-run re-export produced the same ONNX SHA256, so this acceptance
+record remains applicable. The existing `onnx_active` directory was not
+modified during validation. Switching the oil-spill model to this release
+remains an explicit Windows-side integration step.

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "created_at_utc": "2026-07-28T06:30:21.248263+00:00",
+  "created_at_utc": "2026-07-28T06:37:01.106781+00:00",
   "source_file": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
   "source_size_bytes": 2427317095,
   "source_mtime_utc": "2026-07-28T06:21:20.962940+00:00",

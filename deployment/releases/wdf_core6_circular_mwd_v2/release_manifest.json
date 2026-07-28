@@ -1,9 +1,10 @@
 {
   "model_version": "wdf_core6_circular_mwd_v2",
-  "created_at_utc": "2026-07-28T06:40:08.437640+00:00",
+  "created_at_utc": "2026-07-28T06:44:12.082666+00:00",
   "scientific_status": "frozen_core_6_selected_by_ablation",
   "deployment_status": "windows_cpp_fortran_validated",
   "training_code_git_commit": "514170a3e3dc4c015df7159df3ae7279d5f3a1b2",
+  "training_run": "trained_models/ablation_circular_mwd_v2_final/core_6",
   "split_method": "original_ID",
   "split_random_seed": 42,
   "split_counts": {
@@ -25,7 +26,7 @@
   },
   "metrics": {
     "checkpoint": {
-      "path": "trained_models/ablation_circular_mwd_v2/core_6/best_mlp.pth",
+      "path": "trained_models/ablation_circular_mwd_v2_final/core_6/best_mlp.pth",
       "best_epoch": 12,
       "validation_loss": 0.03801552007388424,
       "validation_r2_joint": 0.12850630839880717,
@@ -82,13 +83,14 @@
     "result": "passed",
     "maximum_absolute_difference": 1.4901e-08,
     "acceptance_threshold": 0.0001,
+    "validated_onnx_sha256": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
     "staging_path": "D:\\OilspillModel\\OilSpillModel\\ModelRun\\release_onnx\\wdf_core6_circular_mwd_v2",
     "onnx_active_modified": false
   },
   "source_hashes": {
     "checkpoint_sha256": "1a3e2ab9091fa318f57dc00bfa10954a0faff62242be3860d151a06f48e15241",
     "scaler_sha256": "b73dbde04ae9b4059b6137e50b59cdbeab8c3f0613b1daf68ef3a102e0436f83",
-    "split_manifest_sha256": "a7ce96e489f6877826e469b979a53e91f66bc80678a137f7fc693a4b021c29cf",
+    "split_manifest_sha256": "29b2f1c599290fd40c17c05180b1eacc3500a8c07fc83bb4889fe6f6882ff23d",
     "model_config_sha256": "f2f26eb1d010e4010016915f2a9f18c04d043096b4b4234b4af81c1ba1f4c1f4"
   },
   "scaler": {

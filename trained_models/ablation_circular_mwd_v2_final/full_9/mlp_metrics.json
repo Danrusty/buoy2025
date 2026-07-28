@@ -1,6 +1,6 @@
 {
   "checkpoint": {
-    "path": "trained_models/ablation_circular_mwd_v2/full_9/best_mlp.pth",
+    "path": "trained_models/ablation_circular_mwd_v2_final/full_9/best_mlp.pth",
     "best_epoch": 9,
     "validation_loss": 0.038007452692444196,
     "validation_r2_joint": 0.12867982496746355,

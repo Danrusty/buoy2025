@@ -1,5 +1,5 @@
 {
-  "ablation_name": "ablation_circular_mwd_v2",
+  "ablation_name": "ablation_circular_mwd_v2_final",
   "data_path": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
   "feature_set": "full_9",
   "features": [
@@ -17,14 +17,14 @@
   "sample_mode": false,
   "split_group": "original_ID",
   "random_seed": 42,
-  "log_path": "logs/ablation_circular_mwd_v2_full_9_20260728_143024.log",
-  "artifact_dir": "trained_models/ablation_circular_mwd_v2/full_9",
-  "result_dir": "results/ablation_circular_mwd_v2/full_9",
-  "curve_path": "results/ablation_circular_mwd_v2/full_9/mlp_training_curve.png",
-  "history_path": "trained_models/ablation_circular_mwd_v2/full_9/training_history.json",
+  "log_path": "logs/ablation_circular_mwd_v2_final_full_9_20260728_143947.log",
+  "artifact_dir": "trained_models/ablation_circular_mwd_v2_final/full_9",
+  "result_dir": "results/ablation_circular_mwd_v2_final/full_9",
+  "curve_path": "results/ablation_circular_mwd_v2_final/full_9/mlp_training_curve.png",
+  "history_path": "trained_models/ablation_circular_mwd_v2_final/full_9/training_history.json",
   "metrics": {
     "checkpoint": {
-      "path": "trained_models/ablation_circular_mwd_v2/full_9/best_mlp.pth",
+      "path": "trained_models/ablation_circular_mwd_v2_final/full_9/best_mlp.pth",
       "best_epoch": 9,
       "validation_loss": 0.038007452692444196,
       "validation_r2_joint": 0.12867982496746355,

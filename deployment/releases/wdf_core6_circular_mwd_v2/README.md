@@ -56,6 +56,8 @@
 - ONNX Runtime: 1.17.1
 - Result: C++ build, Fortran compile/link and end-to-end inference passed
 - Maximum absolute difference: `1.4901e-08`
+- Validated ONNX SHA256:
+  `787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941`
 - Staging path:
   `D:\OilspillModel\OilSpillModel\ModelRun\release_onnx\wdf_core6_circular_mwd_v2`
 - `onnx_active` was not modified during acceptance.

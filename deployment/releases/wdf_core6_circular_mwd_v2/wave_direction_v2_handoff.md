@@ -25,7 +25,7 @@
 - Train/validation/test `original_ID` lists are identical to v1:
   `1707 / 366 / 366` IDs.
 - Frozen checkpoint:
-  `trained_models/ablation_circular_mwd_v2/core_6/best_mlp.pth`
+  `trained_models/ablation_circular_mwd_v2_final/core_6/best_mlp.pth`
 - Checkpoint SHA256:
   `1a3e2ab9091fa318f57dc00bfa10954a0faff62242be3860d151a06f48e15241`
 - Scaler SHA256:
@@ -111,6 +111,7 @@ Completed on 2026-07-28:
 - ONNX Runtime 1.17.1 Fortran -> C++ -> ONNX inference: passed
 - Observed maximum absolute error: `1.4901e-08`
 - Required tolerance: `< 1e-4`
+- The final-run re-export retained the validated ONNX SHA256 exactly
 - Detailed record: `WINDOWS_VALIDATION.md`
 - `onnx_active` remained unchanged
 
