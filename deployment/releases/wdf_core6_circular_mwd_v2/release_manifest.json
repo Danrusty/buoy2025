@@ -1,0 +1,137 @@
+{
+  "model_version": "wdf_core6_circular_mwd_v2",
+  "created_at_utc": "2026-07-28T06:40:08.437640+00:00",
+  "scientific_status": "frozen_core_6_selected_by_ablation",
+  "deployment_status": "windows_cpp_fortran_validated",
+  "training_code_git_commit": "514170a3e3dc4c015df7159df3ae7279d5f3a1b2",
+  "split_method": "original_ID",
+  "split_random_seed": 42,
+  "split_counts": {
+    "train": {
+      "n_original_ids": 1707,
+      "n_segments": 2900,
+      "n_samples": 11694073
+    },
+    "val": {
+      "n_original_ids": 366,
+      "n_segments": 595,
+      "n_samples": 2614863
+    },
+    "test": {
+      "n_original_ids": 366,
+      "n_segments": 646,
+      "n_samples": 2425415
+    }
+  },
+  "metrics": {
+    "checkpoint": {
+      "path": "trained_models/ablation_circular_mwd_v2/core_6/best_mlp.pth",
+      "best_epoch": 12,
+      "validation_loss": 0.03801552007388424,
+      "validation_r2_joint": 0.12850630839880717,
+      "parameter_count": 433538
+    },
+    "test": {
+      "r2_u": 0.12734533902056788,
+      "r2_v": 0.1274503641836796,
+      "r2_joint": 0.12739785160212375,
+      "rmse": 0.19468220192490404,
+      "mae": 0.1433051275918311
+    },
+    "linear_baseline_test": {
+      "r2_u": 0.12154202992486851,
+      "r2_v": 0.12309173729332534,
+      "r2_joint": 0.12231688360909693,
+      "rmse": 0.19525023742205133,
+      "mae": 0.14371787708735873
+    },
+    "mlp_vs_linear": {
+      "rmse_improvement_percent": 0.29092691750198957,
+      "r2_joint_difference": 0.005080967993026819
+    }
+  },
+  "onnx": {
+    "filename": "wdf_drifter.onnx",
+    "opset": 12,
+    "input_name": "input",
+    "output_name": "output",
+    "scaler_inside_graph": true,
+    "feature_count": 6
+  },
+  "verification": {
+    "reference_batch_size": 3,
+    "max_absolute_difference": 5.21540641784668e-08,
+    "mean_absolute_difference": 1.3659398057086491e-08,
+    "acceptance_threshold": 1e-05,
+    "dynamic_batch_sizes_passed": [
+      1,
+      3,
+      17
+    ],
+    "input_dtype": "tensor(float)",
+    "output_dtype": "tensor(float)"
+  },
+  "windows_validation": {
+    "date": "2026-07-28",
+    "platform": "Windows x64",
+    "visual_studio": "17.14.29",
+    "msvc": "19.44.35225",
+    "fortran_compiler": "Intel oneAPI ifx 2022.1.0 Build 20220316",
+    "onnxruntime": "1.17.1",
+    "chain": "Fortran -> C++ -> ONNX Runtime",
+    "result": "passed",
+    "maximum_absolute_difference": 1.4901e-08,
+    "acceptance_threshold": 0.0001,
+    "staging_path": "D:\\OilspillModel\\OilSpillModel\\ModelRun\\release_onnx\\wdf_core6_circular_mwd_v2",
+    "onnx_active_modified": false
+  },
+  "source_hashes": {
+    "checkpoint_sha256": "1a3e2ab9091fa318f57dc00bfa10954a0faff62242be3860d151a06f48e15241",
+    "scaler_sha256": "b73dbde04ae9b4059b6137e50b59cdbeab8c3f0613b1daf68ef3a102e0436f83",
+    "split_manifest_sha256": "a7ce96e489f6877826e469b979a53e91f66bc80678a137f7fc693a4b021c29cf",
+    "model_config_sha256": "f2f26eb1d010e4010016915f2a9f18c04d043096b4b4234b4af81c1ba1f4c1f4"
+  },
+  "scaler": {
+    "n_features_in": 6,
+    "n_samples_seen": 11694073,
+    "mean": [
+      -0.5929821762779716,
+      0.10755626118182887,
+      2.4452405890492797,
+      8.878838666692591,
+      -0.07113936644587787,
+      -0.15388750906817006
+    ],
+    "scale": [
+      5.905031423755417,
+      5.1208043129403515,
+      1.096127123133497,
+      1.7082364314052774,
+      0.7107380997459919,
+      0.6827218896902393
+    ]
+  },
+  "software": {
+    "torch": "2.5.1",
+    "onnx": "1.20.0",
+    "onnxruntime": "1.24.4"
+  },
+  "dataset": {
+    "filename": "trajectories_with_all_features_circular_mwd_v2.pkl",
+    "size_bytes": 2427317095,
+    "sha256": "22ab0a32ff9472a6f8b8f57af5fd96b93cdeb76d45b4ef6b0a798fa1befb937e",
+    "diagnostics_filename": "trajectories_with_all_features_circular_mwd_v2_diagnostics.json",
+    "diagnostics_sha256": "27dc5c444572d32ef273704d6de9bbafe90fd4a52e99cca25e570e22e753b002",
+    "generation_algorithm": "mwd_circular_exact_hour_local_month_v3",
+    "generation_code_git_commit": "8f599cd66be2513c910d66790d65d27bfd79efe8",
+    "direction_convention": {
+      "source": "ERA5 mean_wave_direction",
+      "meaning": "coming-from",
+      "zero_direction": "north",
+      "positive_rotation": "clockwise",
+      "add_180_degrees": false,
+      "sin_definition": "sin(deg2rad(mwd))",
+      "cos_definition": "cos(deg2rad(mwd))"
+    }
+  }
+}

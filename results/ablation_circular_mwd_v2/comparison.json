@@ -1,0 +1,82 @@
+{
+  "study": "ablation_circular_mwd_v2",
+  "split_method": "original_ID",
+  "random_seed": 42,
+  "joint_r2_definition": "mean(R2_residual_u, R2_residual_v), float64",
+  "feature_sets": {
+    "core_6": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ],
+    "full_9": [
+      "era5_u10",
+      "era5_v10",
+      "era5_wind_speed",
+      "era5_wind_dir_sin",
+      "era5_wind_dir_cos",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ]
+  },
+  "split_stats": {
+    "train": {
+      "n_original_ids": 1707,
+      "n_segments": 2900,
+      "n_samples": 11694073
+    },
+    "val": {
+      "n_original_ids": 366,
+      "n_segments": 595,
+      "n_samples": 2614863
+    },
+    "test": {
+      "n_original_ids": 366,
+      "n_segments": 646,
+      "n_samples": 2425415
+    }
+  },
+  "results": [
+    {
+      "feature_set": "core_6",
+      "n_features": 6,
+      "parameter_count": 433538,
+      "best_epoch": 12,
+      "val_loss": 0.03801552007388424,
+      "val_r2_joint": 0.12850630839880717,
+      "test_r2_u": 0.12734533902056788,
+      "test_r2_v": 0.1274503641836796,
+      "test_r2_joint": 0.12739785160212375,
+      "test_rmse": 0.19468220192490404,
+      "test_mae": 0.1433051275918311,
+      "linear_test_r2_joint": 0.12231688360909693,
+      "linear_test_rmse": 0.19525023742205133
+    },
+    {
+      "feature_set": "full_9",
+      "n_features": 9,
+      "parameter_count": 435074,
+      "best_epoch": 9,
+      "val_loss": 0.038007452692444196,
+      "val_r2_joint": 0.12867982496746355,
+      "test_r2_u": 0.1273511402505958,
+      "test_r2_v": 0.12660723401891916,
+      "test_r2_joint": 0.12697918713475748,
+      "test_rmse": 0.19472768358178708,
+      "test_mae": 0.14333019611731804,
+      "linear_test_r2_joint": 0.12231688360909693,
+      "linear_test_rmse": 0.19525023742205133
+    }
+  ],
+  "delta": {
+    "full_9_minus_core_6_test_r2_joint": -0.00041866446736626983,
+    "full_9_minus_core_6_test_rmse": 4.548165688303407e-05,
+    "full_9_minus_core_6_test_mae": 2.5068525486948712e-05,
+    "full_9_minus_core_6_val_r2_joint": 0.00017351656865638443
+  }
+}

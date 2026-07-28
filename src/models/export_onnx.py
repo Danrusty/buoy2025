@@ -28,7 +28,7 @@ from data_loader import PROJECT_ROOT, TARGET_COLS
 from train_mlp import ResidualMLP
 
 
-MODEL_VERSION = "wdf_core6_original_id_v1"
+DEFAULT_MODEL_VERSION = "wdf_core6_original_id_v1"
 DEFAULT_RUN_NAME = "ablation_study/core_6"
 OPSET_VERSION = 12
 INPUT_NAME = "input"
@@ -52,6 +52,15 @@ FEATURE_UNITS = {
     "era5_wave_dir_cos": "dimensionless",
 }
 TARGET_UNITS = ["m/s", "m/s"]
+WAVE_DIRECTION_CONVENTION = {
+    "source": "ERA5 mean_wave_direction",
+    "meaning": "coming-from",
+    "zero_direction": "north",
+    "positive_rotation": "clockwise",
+    "add_180_degrees": False,
+    "sin_definition": "sin(deg2rad(mwd))",
+    "cos_definition": "cos(deg2rad(mwd))",
+}
 
 # 三组有限、物理量级合理的 core6 固定测试向量。
 REFERENCE_INPUTS = np.asarray(
@@ -185,13 +194,20 @@ def _verify_model(
         {INPUT_NAME: REFERENCE_INPUTS},
     )[0]
 
-    # 单样本验证动态 batch，而不仅是导出时使用的 batch=1。
-    single_output = session.run(
-        [OUTPUT_NAME],
-        {INPUT_NAME: REFERENCE_INPUTS[:1]},
-    )[0]
-    if single_output.shape != (1, len(TARGET_COLS)):
-        raise RuntimeError(f"动态 batch 验证失败: {single_output.shape}")
+    dynamic_batch_sizes = [1, len(REFERENCE_INPUTS), 17]
+    for batch_size in dynamic_batch_sizes:
+        repeats = int(np.ceil(batch_size / len(REFERENCE_INPUTS)))
+        dynamic_input = np.tile(REFERENCE_INPUTS, (repeats, 1))[:batch_size]
+        dynamic_output = session.run(
+            [OUTPUT_NAME],
+            {INPUT_NAME: dynamic_input},
+        )[0]
+        expected_shape = (batch_size, len(TARGET_COLS))
+        if dynamic_output.shape != expected_shape:
+            raise RuntimeError(
+                f"动态 batch={batch_size} 验证失败: "
+                f"{dynamic_output.shape} != {expected_shape}"
+            )
 
     difference = np.abs(pytorch_output - onnx_output)
     max_diff = float(difference.max())
@@ -212,24 +228,34 @@ def _verify_model(
         raise RuntimeError(
             f"ONNX 输入接口异常: {input_meta.name}, {input_meta.shape}"
         )
+    if input_meta.type != "tensor(float)":
+        raise RuntimeError(f"ONNX 输入 dtype 异常: {input_meta.type}")
     if output_meta.name != OUTPUT_NAME or output_meta.shape != expected_output_shape:
         raise RuntimeError(
             f"ONNX 输出接口异常: {output_meta.name}, {output_meta.shape}"
         )
+    if output_meta.type != "tensor(float)":
+        raise RuntimeError(f"ONNX 输出 dtype 异常: {output_meta.type}")
 
     verification = {
         "reference_batch_size": int(len(REFERENCE_INPUTS)),
         "max_absolute_difference": max_diff,
         "mean_absolute_difference": mean_diff,
         "acceptance_threshold": MAX_ALLOWED_DIFF,
-        "dynamic_batch_single_sample_passed": True,
+        "dynamic_batch_sizes_passed": dynamic_batch_sizes,
+        "input_dtype": input_meta.type,
+        "output_dtype": output_meta.type,
     }
     return onnx_output, verification
 
 
-def _write_interface(path: Path, feature_cols: list[str]) -> None:
+def _write_interface(
+    path: Path,
+    feature_cols: list[str],
+    model_version: str,
+) -> None:
     interface = {
-        "model_version": MODEL_VERSION,
+        "model_version": model_version,
         "opset": OPSET_VERSION,
         "input": {
             "name": INPUT_NAME,
@@ -264,6 +290,7 @@ def _write_interface(path: Path, feature_cols: list[str]) -> None:
             "nan_or_inf_supported": False,
             "missing_value_handling_inside_model": False,
         },
+        "wave_direction_convention": WAVE_DIRECTION_CONVENTION,
         "fortran_layout": {
             "input_declaration": (
                 f"real(c_float) :: features({len(feature_cols)}, N)"
@@ -281,11 +308,12 @@ def _write_readme(
     path: Path,
     verification: dict[str, Any],
     feature_cols: list[str],
+    model_version: str,
 ) -> None:
     path.write_text(
         f"""# WDF ONNX Windows Handoff
 
-- Model version: `{MODEL_VERSION}`
+- Model version: `{model_version}`
 - Scientific status: frozen core_6 model selected by controlled ablation
 - Windows status: candidate, pending repeated C++/Fortran validation
 - ONNX opset: {OPSET_VERSION}
@@ -293,6 +321,15 @@ def _write_readme(
 - Output: `output`, float32, `(batch_size, 2)`
 - StandardScaler: baked into ONNX; do not standardize again in Fortran
 - PyTorch/ONNX max absolute difference: {verification['max_absolute_difference']:.3e}
+- Dynamic batches verified: {verification['dynamic_batch_sizes_passed']}
+
+## Wave direction convention
+
+- ERA5 `mean_wave_direction`, `coming-from`
+- 0 degrees is north; angle increases clockwise
+- `wave_dir_sin = sin(deg2rad(mwd))`
+- `wave_dir_cos = cos(deg2rad(mwd))`
+- Do not add 180 degrees
 
 ## Frozen input order
 
@@ -339,6 +376,10 @@ def _write_checksums(release_dir: Path) -> None:
 def build_release(
     run_dir: Path,
     release_dir: Path,
+    *,
+    model_version: str = DEFAULT_MODEL_VERSION,
+    data_diagnostics_path: Path | None = None,
+    training_commit: str | None = None,
 ) -> dict[str, Any]:
     checkpoint_path = run_dir / "best_mlp.pth"
     scaler_path = run_dir / "x_scaler.pkl"
@@ -384,7 +425,11 @@ def build_release(
 
     _write_csv(release_dir / "test_input.csv", feature_cols, REFERENCE_INPUTS)
     _write_csv(release_dir / "expected_output.csv", TARGET_COLS, onnx_output)
-    _write_interface(release_dir / "interface.json", feature_cols)
+    _write_interface(
+        release_dir / "interface.json",
+        feature_cols,
+        model_version,
+    )
 
     for filename in WRAPPER_FILES:
         source_path = PROJECT_ROOT / "src" / "models" / filename
@@ -400,11 +445,47 @@ def build_release(
 
     split_manifest = json.loads(split_manifest_path.read_text(encoding="utf-8"))
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    dataset_provenance = None
+    if data_diagnostics_path is not None:
+        data_diagnostics_path = data_diagnostics_path.resolve()
+        diagnostics = json.loads(
+            data_diagnostics_path.read_text(encoding="utf-8")
+        )
+        processing = diagnostics["processing"]
+        file_integrity = diagnostics["file_integrity"]
+        direction_convention = diagnostics["direction_convention"]
+        dataset_path = Path(processing["output_file"]).resolve()
+        split_source_path = Path(split_manifest["source_file"]).resolve()
+        if dataset_path != split_source_path:
+            raise ValueError(
+                "诊断文件的数据集与训练 split manifest 不一致: "
+                f"{dataset_path} != {split_source_path}"
+            )
+        if not dataset_path.is_file():
+            raise FileNotFoundError(dataset_path)
+        actual_size = dataset_path.stat().st_size
+        expected_size = int(file_integrity["output_size_bytes"])
+        if actual_size != expected_size:
+            raise ValueError(
+                f"v2 数据集大小不匹配: {actual_size} != {expected_size}"
+            )
+        dataset_provenance = {
+            "filename": dataset_path.name,
+            "size_bytes": actual_size,
+            "sha256": file_integrity["output_sha256"],
+            "diagnostics_filename": data_diagnostics_path.name,
+            "diagnostics_sha256": _sha256(data_diagnostics_path),
+            "generation_algorithm": processing["algorithm_version"],
+            "generation_code_git_commit": processing["code_git_commit"],
+            "direction_convention": direction_convention,
+        }
+
     manifest = {
-        "model_version": MODEL_VERSION,
+        "model_version": model_version,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "scientific_status": "frozen_core_6_selected_by_ablation",
         "deployment_status": "candidate_pending_windows_validation",
+        "training_code_git_commit": training_commit or "unknown",
         "split_method": "original_ID",
         "split_random_seed": split_manifest["random_seed"],
         "split_counts": {
@@ -442,11 +523,19 @@ def build_release(
             "onnxruntime": ort.__version__,
         },
     }
+    if dataset_provenance is not None:
+        manifest["dataset"] = dataset_provenance
+
     (release_dir / "release_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    _write_readme(release_dir / "README.md", verification, feature_cols)
+    _write_readme(
+        release_dir / "README.md",
+        verification,
+        feature_cols,
+        model_version,
+    )
     _write_checksums(release_dir)
     return manifest
 
@@ -454,16 +543,38 @@ def build_release(
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成 WDF ONNX Windows 交接包")
     parser.add_argument("--run-name", default=DEFAULT_RUN_NAME)
+    parser.add_argument("--model-version", default=DEFAULT_MODEL_VERSION)
     parser.add_argument(
         "--release-dir",
         type=Path,
-        default=PROJECT_ROOT / "deployment" / "releases" / MODEL_VERSION,
+        default=None,
+    )
+    parser.add_argument(
+        "--data-diagnostics",
+        type=Path,
+        default=None,
+        help="可选的数据集生成诊断 JSON，用于写入发布溯源信息",
+    )
+    parser.add_argument(
+        "--training-commit",
+        default=None,
+        help="训练时使用的 Git commit；未提供时记录为 unknown",
     )
     args = parser.parse_args()
 
     run_dir = PROJECT_ROOT / "trained_models" / args.run_name
-    release_dir = args.release_dir.resolve()
-    manifest = build_release(run_dir, release_dir)
+    release_dir = (
+        args.release_dir
+        if args.release_dir is not None
+        else PROJECT_ROOT / "deployment" / "releases" / args.model_version
+    ).resolve()
+    manifest = build_release(
+        run_dir,
+        release_dir,
+        model_version=args.model_version,
+        data_diagnostics_path=args.data_diagnostics,
+        training_commit=args.training_commit,
+    )
 
     print("WDF ONNX 发布包生成完成")
     print(f"  version : {manifest['model_version']}")

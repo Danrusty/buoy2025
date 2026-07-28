@@ -1,0 +1,52 @@
+{
+  "ablation_name": "ablation_circular_mwd_v2",
+  "data_path": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
+  "feature_set": "full_9",
+  "features": [
+    "era5_u10",
+    "era5_v10",
+    "era5_wind_speed",
+    "era5_wind_dir_sin",
+    "era5_wind_dir_cos",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos"
+  ],
+  "n_features": 9,
+  "sample_mode": false,
+  "split_group": "original_ID",
+  "random_seed": 42,
+  "log_path": "logs/ablation_circular_mwd_v2_full_9_20260728_143024.log",
+  "artifact_dir": "trained_models/ablation_circular_mwd_v2/full_9",
+  "result_dir": "results/ablation_circular_mwd_v2/full_9",
+  "curve_path": "results/ablation_circular_mwd_v2/full_9/mlp_training_curve.png",
+  "history_path": "trained_models/ablation_circular_mwd_v2/full_9/training_history.json",
+  "metrics": {
+    "checkpoint": {
+      "path": "trained_models/ablation_circular_mwd_v2/full_9/best_mlp.pth",
+      "best_epoch": 9,
+      "validation_loss": 0.038007452692444196,
+      "validation_r2_joint": 0.12867982496746355,
+      "parameter_count": 435074
+    },
+    "test": {
+      "r2_u": 0.1273511402505958,
+      "r2_v": 0.12660723401891916,
+      "r2_joint": 0.12697918713475748,
+      "rmse": 0.19472768358178708,
+      "mae": 0.14333019611731804
+    },
+    "linear_baseline_test": {
+      "r2_u": 0.12154202992486851,
+      "r2_v": 0.12309173729332534,
+      "r2_joint": 0.12231688360909693,
+      "rmse": 0.19525023742205133,
+      "mae": 0.14371787708735873
+    },
+    "mlp_vs_linear": {
+      "rmse_improvement_percent": 0.2676328834032134,
+      "r2_joint_difference": 0.004662303525660549
+    }
+  }
+}

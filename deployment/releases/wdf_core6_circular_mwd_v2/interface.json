@@ -1,0 +1,85 @@
+{
+  "model_version": "wdf_core6_circular_mwd_v2",
+  "opset": 12,
+  "input": {
+    "name": "input",
+    "shape": [
+      "batch_size",
+      6
+    ],
+    "dtype": "float32",
+    "physical_values": true,
+    "standardization": "inside_onnx",
+    "features": [
+      {
+        "index": 1,
+        "name": "era5_u10",
+        "unit": "m/s"
+      },
+      {
+        "index": 2,
+        "name": "era5_v10",
+        "unit": "m/s"
+      },
+      {
+        "index": 3,
+        "name": "era5_swh",
+        "unit": "m"
+      },
+      {
+        "index": 4,
+        "name": "era5_mwp",
+        "unit": "s"
+      },
+      {
+        "index": 5,
+        "name": "era5_wave_dir_sin",
+        "unit": "dimensionless"
+      },
+      {
+        "index": 6,
+        "name": "era5_wave_dir_cos",
+        "unit": "dimensionless"
+      }
+    ]
+  },
+  "output": {
+    "name": "output",
+    "shape": [
+      "batch_size",
+      2
+    ],
+    "dtype": "float32",
+    "variables": [
+      {
+        "index": 1,
+        "name": "residual_u",
+        "unit": "m/s",
+        "positive_direction": "east"
+      },
+      {
+        "index": 2,
+        "name": "residual_v",
+        "unit": "m/s",
+        "positive_direction": "north"
+      }
+    ]
+  },
+  "input_validation": {
+    "nan_or_inf_supported": false,
+    "missing_value_handling_inside_model": false
+  },
+  "wave_direction_convention": {
+    "source": "ERA5 mean_wave_direction",
+    "meaning": "coming-from",
+    "zero_direction": "north",
+    "positive_rotation": "clockwise",
+    "add_180_degrees": false,
+    "sin_definition": "sin(deg2rad(mwd))",
+    "cos_definition": "cos(deg2rad(mwd))"
+  },
+  "fortran_layout": {
+    "input_declaration": "real(c_float) :: features(6, N)",
+    "output_declaration": "real(c_float) :: drift_uv(2, N)"
+  }
+}
