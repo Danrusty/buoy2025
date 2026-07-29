@@ -61,10 +61,10 @@ class ResidualMLP(nn.Module):
     """
     大容量 MLP（~430K 参数），带 BatchNorm + Dropout。
 
-    Input(9) -> [512->BN->ReLU->Drop] -> [512->BN->ReLU->Drop]
-             -> [256->BN->ReLU->Drop] -> [128->BN->ReLU] -> Linear(2)
+    Input(input_size) -> [512->BN->ReLU->Drop] -> [512->BN->ReLU->Drop]
+                      -> [256->BN->ReLU->Drop] -> [128->BN->ReLU] -> Linear(2)
 
-    参数量：~430K，与 11M 训练样本匹配（样本/参数 ≈ 25，安全范围内）。
+    core6/full9 的参数量均约 430K，与 11M 级训练样本相匹配。
     Dropout(0.1) 防止大网络过拟合。
     """
     def __init__(self, input_size: int = 9, output_size: int = 2,
@@ -312,7 +312,7 @@ def train(splits: dict) -> dict:
 
 
 # ==============================================================================
-# 最终评估（Test 集）& 与线性基准对比
+# 最终评估（测试集）及与线性基准对比
 # ==============================================================================
 def evaluate_and_compare(train_result: dict, baseline_result: dict) -> dict:
     model     = train_result['model']
@@ -337,7 +337,7 @@ def evaluate_and_compare(train_result: dict, baseline_result: dict) -> dict:
 
     sep = "=" * 60
     _logger.info(f"\n{sep}")
-    _logger.info("  最终评估（Test 集）& 与线性基准对比")
+    _logger.info("  最终评估（测试集）及与线性基准对比")
     _logger.info(sep)
     _logger.info(f"\n{'指标':<20} {'线性回归 (WDF)':>18} {'MLP':>14}")
     _logger.info("-" * 55)
@@ -350,13 +350,17 @@ def evaluate_and_compare(train_result: dict, baseline_result: dict) -> dict:
 
     rmse_improve = (baseline_result['rmse'] - rmse) / baseline_result['rmse'] * 100
     r2_improve   = r2_joint - baseline_result['r2_joint']
-    _logger.info(f"MLP vs 线性基准: RMSE 提升 {rmse_improve:+.1f}%，R² 提升 {r2_improve:+.4f}")
+    _logger.info(
+        "MLP 相对线性基准: RMSE 提升 %+.1f%%，R² 提升 %+.4f",
+        rmse_improve,
+        r2_improve,
+    )
     _logger.info(sep)
 
     if rmse < baseline_result['rmse']:
-        _logger.info("✓ MLP 成功击败线性 WDF 基准！")
+        _logger.info("[通过] MLP 的测试集 RMSE 低于线性 WDF 基准。")
     else:
-        _logger.info("✗ MLP 未超过线性基准，建议检查特征或增大训练轮数。")
+        _logger.info("[未通过] MLP 的测试集 RMSE 未低于线性 WDF 基准。")
     _logger.info(sep)
 
     metrics = {
@@ -405,7 +409,7 @@ def plot_history(
     epochs = range(1, len(history['train_loss']) + 1)
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-    # Loss 曲线
+    # 损失曲线
     axes[0].plot(epochs, history['train_loss'], label='Train Loss', color='tab:blue')
     axes[0].plot(epochs, history['val_loss'],   label='Val Loss',   color='tab:orange')
     axes[0].set_xlabel('Epoch')
@@ -463,14 +467,16 @@ def _setup_logging(run_name: str) -> logging.Logger:
         '%(asctime)s [%(name)s] %(levelname)s - %(message)s',
         datefmt='%H:%M:%S',
     )
-    # 避免重复添加（防止 IDE 等环境多次调用）
-    if not root.handlers:
-        fh = logging.FileHandler(log_path, encoding='utf-8')
-        fh.setFormatter(fmt)
-        sh = logging.StreamHandler()
-        sh.setFormatter(fmt)
-        root.addHandler(fh)
-        root.addHandler(sh)
+    # 长驻 IDE 进程可能保留旧 handler；先关闭，再为本次运行建立唯一日志。
+    for handler in root.handlers[:]:
+        root.removeHandler(handler)
+        handler.close()
+    fh = logging.FileHandler(log_path, encoding='utf-8')
+    fh.setFormatter(fmt)
+    sh = logging.StreamHandler()
+    sh.setFormatter(fmt)
+    root.addHandler(fh)
+    root.addHandler(sh)
     logging.info(f"日志文件: {log_path}")
     return logging.getLogger(__name__)
 
@@ -492,7 +498,7 @@ if __name__ == '__main__':
 
     logger = _setup_logging(args.run_name)
     _logger.info(f"{'='*60}")
-    _logger.info(f"  WDF_DL_Param Phase 2 — MLP 训练  {mode_tag}")
+    _logger.info(f"  WDF_DL_Param 第二阶段：MLP 训练  {mode_tag}")
     _logger.info(f"{'='*60}")
 
     # 步骤 1: 加载数据

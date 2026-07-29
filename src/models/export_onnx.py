@@ -12,6 +12,7 @@ import argparse
 import csv
 import hashlib
 import json
+import logging
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,8 @@ import torch.nn as nn
 from data_loader import PROJECT_ROOT, TARGET_COLS
 from train_mlp import ResidualMLP
 
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_VERSION = "wdf_core6_original_id_v1"
 DEFAULT_RUN_NAME = "ablation_study/core_6"
@@ -435,7 +438,7 @@ def build_release(
         source_path = PROJECT_ROOT / "src" / "models" / filename
         destination_path = release_dir / filename
         if source_path.suffix.lower() == ".bat":
-            # cmd.exe requires reliable CRLF continuation handling.
+            # cmd.exe 的续行依赖 CRLF，因此发布时显式转换换行符。
             text = source_path.read_text(encoding="utf-8").replace("\r\n", "\n")
             destination_path.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
         else:
@@ -549,6 +552,10 @@ def build_release(
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
     parser = argparse.ArgumentParser(description="生成 WDF ONNX Windows 交接包")
     parser.add_argument("--run-name", default=DEFAULT_RUN_NAME)
     parser.add_argument("--model-version", default=DEFAULT_MODEL_VERSION)
@@ -584,15 +591,15 @@ def main() -> None:
         training_commit=args.training_commit,
     )
 
-    print("WDF ONNX 发布包生成完成")
-    print(f"  version : {manifest['model_version']}")
-    print(f"  source  : {run_dir}")
-    print(f"  release : {release_dir}")
-    print(
-        "  max diff: "
-        f"{manifest['verification']['max_absolute_difference']:.3e}"
+    logger.info("WDF ONNX 发布包生成完成")
+    logger.info("模型版本: %s", manifest["model_version"])
+    logger.info("训练产物目录: %s", run_dir)
+    logger.info("发布目录: %s", release_dir)
+    logger.info(
+        "最大绝对误差: %.3e",
+        manifest["verification"]["max_absolute_difference"],
     )
-    print("  Windows validation: pending")
+    logger.info("Windows 验证状态: 待验证")
 
 
 if __name__ == "__main__":

@@ -71,7 +71,9 @@ def _setup_logging(feature_set: str, study_name: str) -> Path:
         f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     )
     root = logging.getLogger()
-    root.handlers.clear()
+    for handler in root.handlers[:]:
+        root.removeHandler(handler)
+        handler.close()
     root.setLevel(logging.INFO)
     formatter = logging.Formatter(
         "%(asctime)s [%(name)s] %(levelname)s - %(message)s",
@@ -102,11 +104,15 @@ def run_experiment(
 
     log_path = _setup_logging(feature_set_name, study_name)
     logger.info("=" * 68)
-    logger.info("Ablation %s | %d features", feature_set_name, len(features))
+    logger.info(
+        "特征消融 %s | %d 个特征",
+        feature_set_name,
+        len(features),
+    )
     logger.info("特征顺序: %s", features)
     logger.info("数据路径: %s", data_path.resolve())
     logger.info("研究名称: %s", study_name)
-    logger.info("模式: %s", "sample" if sample_mode else "full")
+    logger.info("模式: %s", "采样" if sample_mode else "完整数据")
     logger.info("=" * 68)
 
     splits = load_and_split_data(

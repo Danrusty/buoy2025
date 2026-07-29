@@ -167,7 +167,10 @@ def _configure_logging(log_path: Path) -> None:
         "%(asctime)s - %(levelname)s - %(message)s"
     )
     logger.setLevel(logging.INFO)
-    logger.handlers.clear()
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+        handler.close()
+    logger.propagate = False
 
     console = logging.StreamHandler(sys.stdout)
     console.setFormatter(formatter)

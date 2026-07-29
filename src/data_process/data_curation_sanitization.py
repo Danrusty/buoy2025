@@ -11,17 +11,26 @@ from tqdm import tqdm
 # --- 1. 配置与设置 ---
 # ==============================================================================
 LOG_DIR = '../../logs'
-os.makedirs(LOG_DIR, exist_ok=True)
-log_filename = f"data_sanitization_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(LOG_DIR, log_filename), encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+
+def configure_logging():
+    """仅在脚本直接运行时配置控制台和文件日志。"""
+    os.makedirs(LOG_DIR, exist_ok=True)
+    log_filename = (
+        f"data_sanitization_"
+        f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+    )
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(
+                os.path.join(LOG_DIR, log_filename),
+                encoding='utf-8',
+            ),
+            logging.StreamHandler(),
+        ],
+    )
 
 # --- 输入/输出配置 ---
 # 注意：这里改为直接读取 NC 文件
@@ -36,7 +45,7 @@ START_DATE = pd.Timestamp("2020-01-01")
 END_DATE = pd.Timestamp("2022-10-31 23:59:59")
 
 # 序列分割参数
-# 既然是 hourly 数据，容忍度设为 1.5 小时。
+# 数据为逐小时记录，因此将连续性判定容差设为 1.5 小时。
 # 如果差值 > 1.5小时，说明中间缺了至少一个点，必须切断。
 MAX_GAP_HOURS = 1.5 
 MIN_TRAJ_LENGTH = 72  # 最小保留长度 (小时)
@@ -51,23 +60,23 @@ def decode_ids(id_char_array):
     return [''.join(row).strip() for row in id_char_array]
 
 def process_and_sanitize_nc(nc_path, output_path):
-    logging.info(f"--- 启动数据清洗流程 (Target: Undrogued Drifters) ---")
+    logging.info("--- 启动数据清洗流程（目标：无水帆漂流浮标）---")
     logging.info(f"读取原始 NetCDF 文件: {nc_path}")
 
     if not os.path.exists(nc_path):
         logging.error("文件不存在！")
         return
 
-    # 1. 使用 xarray 懒加载
+    # 1. 使用 xarray 延迟加载
     ds = xr.open_dataset(nc_path, decode_times=False) # 保持时间为数字以便快速比较
     
     # 获取原始行数
     total_rows = ds.dims['row']
     logging.info(f"原始数据总行数: {total_rows}")
 
-    # 2. 提取关键列 (Numpy Arrays) 以便快速过滤
+    # 2. 提取关键列为 NumPy 数组，以便快速过滤
     logging.info("提取关键变量到内存...")
-    times = ds['time'].values # seconds since 1970
+    times = ds['time'].values  # 自 1970-01-01 起的秒数
     drogue_lost_dates = ds['drogue_lost_date'].values
     lats = ds['latitude'].values
     lons = ds['longitude'].values
@@ -78,14 +87,14 @@ def process_and_sanitize_nc(nc_path, output_path):
     # 统一转换为 -180 到 180 范围
     lons = (lons + 180) % 360 - 180
     
-    # 转换时间边界为 timestamp float
+    # 将时间边界转换为浮点时间戳
     t_start = (START_DATE - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
     t_end = (END_DATE - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
 
     # --- 核心过滤逻辑 (按优先级) ---
     logging.info("执行向量化过滤...")
 
-    # A. Undrogued (无锚系) 筛选 (首要核心步骤)
+    # A. 筛选无水帆（undrogued）记录，这是首要清洗条件
     # 逻辑: 当前时间 >= 丢失时间 且 丢失时间有效(>0)
     mask_undrogued = (times >= drogue_lost_dates) & (drogue_lost_dates > 0)
     
@@ -96,7 +105,7 @@ def process_and_sanitize_nc(nc_path, output_path):
     # B. 时间范围过滤
     mask_time = (times >= t_start) & (times <= t_end)
     
-    # C. 有效速度过滤 (去除 NaN 并应用速度上限)
+    # C. 过滤无效速度（去除 NaN 并应用速度上限）
     # 速度上限为 4 m/s
     speed = np.sqrt(ves**2 + vns**2)
     mask_valid_vel = (~np.isnan(ves)) & (~np.isnan(vns)) & (speed <= 4.0)
@@ -104,7 +113,7 @@ def process_and_sanitize_nc(nc_path, output_path):
     # D. 坐标有效性 (经度已标准化)
     mask_valid_geo = (lats >= -90) & (lats <= 90) & (lons >= -180) & (lons <= 180)
 
-    # 综合 Mask
+    # 合并所有筛选掩膜
     final_mask = mask_undrogued & mask_time & mask_valid_vel & mask_valid_geo
     
     selected_count = np.sum(final_mask)
@@ -149,7 +158,7 @@ def process_and_sanitize_nc(nc_path, output_path):
         # 计算时间差 (小时)
         time_diffs = group['time'].diff().dt.total_seconds() / 3600.0
         
-        # 找到断点: 只要间隔 > 1.5小时 (考虑到 hourly 数据可能有微小偏差，1.5是安全的判定)
+        # 以 1.5 小时为阈值识别断点，兼容逐小时记录中的微小时间偏差。
         split_indices = np.where(time_diffs > MAX_GAP_HOURS)[0]
         
         # 添加起始和结束点
@@ -198,4 +207,5 @@ def plot_distribution(trajectories):
     logging.info(f"长度分布图已保存至: {plot_path}")
 
 if __name__ == '__main__':
+    configure_logging()
     process_and_sanitize_nc(INPUT_NC_PATH, OUTPUT_SANITIZED_PATH)

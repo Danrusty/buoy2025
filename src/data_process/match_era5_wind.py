@@ -35,7 +35,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
         with open(processed_buoy_file_with_currents, 'rb') as f:
             trajectories_with_currents = pickle.load(f)
     except FileNotFoundError:
-        print(f"错误: 浮标数据文件未找到 at '{processed_buoy_file_with_currents}'")
+        print(f"错误: 未找到浮标数据文件 '{processed_buoy_file_with_currents}'")
         return
     if not trajectories_with_currents:
         print("错误: 加载的浮标轨迹列表为空，无法继续。")
@@ -43,7 +43,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
 
     print(f"加载了 {len(trajectories_with_currents)} 段连续轨迹。")
 
-    # Sample mode: select shortest trajectories for quick validation
+    # 采样模式选择最短轨迹，用于快速验证。
     if sample_mode:
         trajectories_with_currents = sorted(trajectories_with_currents, key=len)
         trajectories_with_currents = trajectories_with_currents[:sample_size]
@@ -61,7 +61,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
     print("步骤 3/4: 逐条处理轨迹并进行时空插值...")
     fully_enriched_trajectories = []
 
-    # Debug counters
+    # 失败类型统计
     fail_stats = {
         'no_files': 0,
         'load_failed': 0,
@@ -77,11 +77,11 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
     for traj_idx, traj_df in enumerate(tqdm(trajectories_with_currents, desc="处理轨迹中")):
         traj_df = traj_df.copy()
 
-        # Determine which months this trajectory spans
+        # 确定当前轨迹覆盖的月份。
         time_min = traj_df['time'].min()
         time_max = traj_df['time'].max()
 
-        # Filter files to only those covering the trajectory's time range
+        # 只保留时间范围与当前轨迹相交的文件。
         era5_files = []
         for f in era5_all_files:
             basename = os.path.basename(f)
@@ -99,32 +99,32 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
             fail_stats['no_files'] += 1
             continue
 
-        # --- Calculate spatial range BEFORE loading files ---
+        # --- 加载文件前计算空间范围 ---
         lat_min = float(traj_df['latitude'].min() - 1)
         lat_max = float(traj_df['latitude'].max() + 1)
         lon_min = float((traj_df['longitude'].min() - 1 + 360) % 360)
         lon_max = float((traj_df['longitude'].max() + 1 + 360) % 360)
 
         try:
-            # Load, standardize, and crop each file BEFORE concatenation
+            # 每个文件先加载、统一坐标并裁剪，再执行拼接。
             datasets = []
             load_errors = []
             for f in era5_files:
                 try:
                     ds = xr.open_dataset(f)
 
-                    # === Step 1: Standardize coordinates on single file (memory-efficient) ===
-                    # Rename coordinates if needed
+                    # === 步骤 1：在单文件内统一坐标，控制内存占用 ===
+                    # 必要时统一坐标名称。
                     if 'latitude' in ds.dims and 'lat' not in ds.dims:
                         ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
 
-                    # Standardize longitude to 0-360 range
+                    # 将经度统一到 0~360 度。
                     if ds.lon.min() < 0:
                         ds['lon'] = (ds['lon'] + 360) % 360
                         ds = ds.sortby('lon')
 
-                    # Sort latitude ascending (ERA5 is descending)
-                    # This sortby on single file (~2-3 GB) is memory-safe
+                    # ERA5 纬度通常为降序，这里统一为升序。
+                    # 对单个文件执行 sortby，避免多文件拼接后产生额外内存峰值。
                     if float(ds.lat[0]) > float(ds.lat[-1]):
                         ds = ds.sortby('lat')
 
@@ -134,7 +134,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
                     if ds.time.dtype != np.dtype('datetime64[ns]'):
                         ds['time'] = ds.time.values.astype('datetime64[ns]')
 
-                    # === Step 2: Remove duplicate timestamps BEFORE slicing ===
+                    # === 步骤 2：裁剪前删除重复时间戳 ===
                     # 注意：仅用 isel 去重后，xarray 内部的 pandas Index 不会自动重建，
                     # 需要 assign_coords 强制刷新，否则 .sel(time=slice()) 仍会报
                     # "Cannot get left slice bound for non-unique label" 错误。
@@ -143,7 +143,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
                         ds = ds.isel(time=np.sort(unique_indices))
                         ds = ds.assign_coords(time=('time', ds.time.values))
 
-                    # === Step 3: Time cropping ===
+                    # === 步骤 3：按时间裁剪 ===
                     file_time_min = pd.Timestamp(ds.time.values[0])
                     file_time_max = pd.Timestamp(ds.time.values[-1])
                     select_min = max(file_time_min, time_min - pd.Timedelta(days=1))
@@ -158,9 +158,9 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
                         ds.close()
                         continue
 
-                    # === Step 4: Spatial cropping (CRITICAL - reduces memory before concat) ===
+                    # === 步骤 4：按空间裁剪，降低拼接前的内存占用 ===
                     if lon_max < lon_min:
-                        # Trajectory crosses dateline - split into two regions
+                        # 轨迹跨越日期变更线，拆分为两个经度区域。
                         ds1 = ds.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, 360))
                         ds2 = ds.sel(lat=slice(lat_min, lat_max), lon=slice(0, lon_max))
                         ds_cropped = xr.concat([ds1, ds2], dim='lon')
@@ -174,7 +174,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
                         ds.close()
                         continue
 
-                    # Append the small, cropped dataset (~tens of MB)
+                    # 保存已裁剪的小数据集，通常为数十 MB。
                     datasets.append(ds_cropped)
                     ds.close()
 
@@ -185,28 +185,28 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
             if not datasets:
                 fail_stats['load_failed'] += 1
                 if traj_idx < 5 or len(load_errors) > 0:
-                    print(f"\n[Traj {traj_idx}] 无法加载任何ERA5文件。时间范围: {time_min} to {time_max}")
+                    print(f"\n[轨迹 {traj_idx}] 无法加载任何 ERA5 文件。时间范围: {time_min} 至 {time_max}")
                     if load_errors:
                         print(f"  加载错误: {load_errors[:3]}")
                 continue
 
-            # Concatenate already-cropped small datasets (total ~hundreds of MB, no OOM)
+            # 拼接已裁剪的数据集，总量通常为数百 MB。
             ds_era5 = xr.concat(datasets, dim='time')
 
         except Exception as e:
             fail_stats['concat_failed'] += 1
             if traj_idx < 5:
-                print(f"\n[Traj {traj_idx}] Concat失败: {e}")
+                print(f"\n[轨迹 {traj_idx}] 数据拼接失败: {e}")
             continue
 
-        # Prepare interpolation coordinate arrays
+        # 构造插值坐标数组。
         lats = xr.DataArray(traj_df['latitude'], dims="points")
         lons = xr.DataArray(traj_df['longitude'], dims="points")
         times = xr.DataArray(traj_df['time'], dims="points")
         lons_360 = (lons + 360) % 360
 
         try:
-            # Spatio-temporal interpolation on ERA5 dataset
+            # 对 ERA5 数据执行时空插值。
             interpolated_wind = ds_era5[['u10', 'v10']].interp(
                 lat=lats,
                 lon=lons_360,
@@ -219,16 +219,16 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
             traj_df['era5_u10'] = u10
             traj_df['era5_v10'] = v10
 
-            # Feature engineering: wind speed (magnitude) and direction encoding
+            # 构造风速大小和风向编码特征。
             wind_speed = np.sqrt(u10 ** 2 + v10 ** 2)
             traj_df['era5_wind_speed'] = wind_speed
 
-            # Encode periodic wind direction into sine and cosine components
+            # 将周期风向编码为正弦、余弦分量。
             wind_angle_rad = np.arctan2(v10, u10)
             traj_df['era5_wind_dir_sin'] = np.sin(wind_angle_rad)
             traj_df['era5_wind_dir_cos'] = np.cos(wind_angle_rad)
 
-            # Check interpolation results
+            # 检查插值结果。
             n_nan = np.isnan(u10).sum()
             n_total = len(u10)
 
@@ -237,27 +237,30 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
             if len(traj_df) == 0:
                 fail_stats['all_nan'] += 1
                 if traj_idx < 5:
-                    print(f"\n[Traj {traj_idx}] 插值后全为NaN ({n_nan}/{n_total} NaN)")
-                    print(f"  轨迹时间范围: {time_min} to {time_max}")
-                    print(f"  ERA5时间范围: {ds_era5.time.values[0]} to {ds_era5.time.values[-1]}")
+                    print(f"\n[轨迹 {traj_idx}] 插值后全为 NaN ({n_nan}/{n_total})")
+                    print(f"  轨迹时间范围: {time_min} 至 {time_max}")
+                    print(f"  ERA5 时间范围: {ds_era5.time.values[0]} 至 {ds_era5.time.values[-1]}")
                 continue
             elif len(traj_df) == 1:
                 fail_stats['too_short'] += 1
                 continue
             else:
                 if n_nan > 0 and traj_idx < 3:
-                    print(f"\n[Traj {traj_idx}] 部分NaN: {n_nan}/{n_total} ({100*n_nan/n_total:.1f}%)")
+                    print(
+                        f"\n[轨迹 {traj_idx}] 部分为 NaN: "
+                        f"{n_nan}/{n_total} ({100*n_nan/n_total:.1f}%)"
+                    )
                 fully_enriched_trajectories.append(traj_df)
                 fail_stats['success'] += 1
 
         except Exception as e:
             fail_stats['interp_failed'] += 1
-            print(f"\n[Traj {traj_idx}] 插值错误: {e}")
-            print(f"  轨迹时间范围: {time_min} to {time_max}")
+            print(f"\n[轨迹 {traj_idx}] 插值错误: {e}")
+            print(f"  轨迹时间范围: {time_min} 至 {time_max}")
             continue
 
         finally:
-            # Cleanup
+            # 释放当前轨迹使用的临时对象。
             try:
                 ds_era5.close()
             except Exception:
@@ -266,7 +269,7 @@ def match_era5_wind(processed_buoy_file_with_currents, era5_dir, output_dir, sam
 
     print(f"插值完成。共 {len(fully_enriched_trajectories)} 段轨迹获得了风场数据。")
 
-    # Print detailed failure statistics
+    # 输出详细的失败类型统计。
     print("\n=== 处理统计 ===")
     print(f"总轨迹数: {len(trajectories_with_currents)}")
     print(f"成功: {fail_stats['success']}")

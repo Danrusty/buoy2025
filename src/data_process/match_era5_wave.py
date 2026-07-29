@@ -154,7 +154,7 @@ def match_era5_wave(
         with open(processed_buoy_file_with_wind, 'rb') as f:
             trajectories_with_wind = pickle.load(f)
     except FileNotFoundError:
-        print(f"错误: 浮标数据文件未找到 at '{processed_buoy_file_with_wind}'")
+        print(f"错误: 未找到浮标数据文件 '{processed_buoy_file_with_wind}'")
         return
     if not trajectories_with_wind:
         print("错误: 加载的浮标轨迹列表为空，无法继续。")
@@ -167,7 +167,7 @@ def match_era5_wave(
         str(index): ['full'] for index in selected_indices
     }
 
-    # Sample mode: select representative trajectories for validation.
+    # 采样模式选择具有代表性的轨迹用于验证。
     if sample_mode:
         (
             trajectories_with_wind,
@@ -196,7 +196,7 @@ def match_era5_wave(
     final_trajectories = []
     diagnosed_era5_coords = False  # 用于首次打印ERA5波浪坐标范围（诊断用）
 
-    # Debug counters
+    # 失败类型统计
     fail_stats = {
         'no_files': 0,
         'load_failed': 0,
@@ -220,11 +220,11 @@ def match_era5_wave(
     for traj_idx, traj_df in enumerate(tqdm(trajectories_with_wind, desc="处理轨迹中")):
         traj_df = traj_df.copy()
 
-        # Determine which months this trajectory spans
+        # 确定当前轨迹覆盖的月份。
         time_min = traj_df['time'].min()
         time_max = traj_df['time'].max()
 
-        # Filter files to only those covering the trajectory's time range
+        # 只保留时间范围与当前轨迹相交的文件。
         era5_wave_files = []
         for f in era5_all_files:
             basename = os.path.basename(f)
@@ -242,22 +242,22 @@ def match_era5_wave(
             fail_stats['no_files'] += 1
             continue
 
-        # --- Calculate spatial range BEFORE loading files ---
+        # --- 加载文件前计算空间范围 ---
         lat_min = float(traj_df['latitude'].min() - 1)
         lat_max = float(traj_df['latitude'].max() + 1)
         lon_min = float((traj_df['longitude'].min() - 1 + 360) % 360)
         lon_max = float((traj_df['longitude'].max() + 1 + 360) % 360)
 
         try:
-            # Load, standardize, and crop each file BEFORE concatenation
+            # 每个文件先加载、统一坐标并裁剪，再执行拼接。
             datasets = []
             load_errors = []
             for f in era5_wave_files:
                 try:
                     ds = xr.open_dataset(f)
 
-                    # === Step 1: Handle wave-specific time format ===
-                    # Rename 'valid_time' to 'time' if present
+                    # === 步骤 1：处理波浪文件的时间格式 ===
+                    # 存在 valid_time 时，将其统一为 time。
                     # 注意：新版 CDS API 下载的 ERA5 文件同时含有 'time'（预报参考时间）
                     # 和 'valid_time'（实际有效时间）两个坐标。直接 rename 会因目标名已存在而报错。
                     if 'valid_time' in ds.coords:
@@ -268,7 +268,7 @@ def match_era5_wave(
                             # valid_time 就是主时间维度，重命名为 time
                             ds = ds.rename({'valid_time': 'time'})
 
-                    # Wave files have time as float64 (YYYYMMDD.fraction), convert to datetime64
+                    # 将浮点 YYYYMMDD.fraction 时间转换为 datetime64。
                     if ds.time.dtype == np.float64 or ds.time.dtype == np.float32:
                         time_float = ds.time.values.astype(np.float64)
                         date_ints = time_float.astype(np.int64)
@@ -286,19 +286,19 @@ def match_era5_wave(
                     if ds.time.dtype != np.dtype('datetime64[ns]'):
                         ds['time'] = ds.time.values.astype('datetime64[ns]')
 
-                    # === Step 2: Standardize coordinates on single file (memory-efficient) ===
-                    # Rename coordinates if needed
+                    # === 步骤 2：在单文件内统一坐标，控制内存占用 ===
+                    # 必要时统一坐标名称。
                     if 'latitude' in ds.dims and 'lat' not in ds.dims:
                         ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})
 
-                    # Standardize longitude to 0-360 range
+                    # 将经度统一到 0~360 度。
                     # 用 float() 确保是标量比较，避免 xarray DataArray 比较在某些版本下行为异常
                     if float(ds.lon.min()) < 0:
                         ds['lon'] = (ds['lon'] + 360) % 360
                         ds = ds.sortby('lon')
 
-                    # Sort latitude ascending (ERA5 is descending)
-                    # This sortby on single file (~2-3 GB) is memory-safe
+                    # ERA5 纬度通常为降序，这里统一为升序。
+                    # 对单个文件执行 sortby，避免多文件拼接后产生额外内存峰值。
                     if float(ds.lat[0]) > float(ds.lat[-1]):
                         ds = ds.sortby('lat')
 
@@ -310,7 +310,7 @@ def match_era5_wave(
                         print(f"  可用变量: {list(ds.data_vars.keys())}")
                         diagnosed_era5_coords = True
 
-                    # === Step 3: Remove duplicate timestamps BEFORE slicing ===
+                    # === 步骤 3：裁剪前删除重复时间戳 ===
                     # 同风场脚本：isel 去重后必须 assign_coords 强制刷新内部 pandas Index，
                     # 否则 .sel(time=slice()) 仍会报 non-unique label 错误。
                     _, unique_indices = np.unique(ds.time.values, return_index=True)
@@ -318,7 +318,7 @@ def match_era5_wave(
                         ds = ds.isel(time=np.sort(unique_indices))
                         ds = ds.assign_coords(time=('time', ds.time.values))
 
-                    # === Step 4: Time cropping ===
+                    # === 步骤 4：按时间裁剪 ===
                     file_time_min = pd.Timestamp(ds.time.values[0])
                     file_time_max = pd.Timestamp(ds.time.values[-1])
                     select_min = max(file_time_min, time_min - pd.Timedelta(days=1))
@@ -333,9 +333,9 @@ def match_era5_wave(
                         ds.close()
                         continue
 
-                    # === Step 5: Spatial cropping (CRITICAL - reduces memory before concat) ===
+                    # === 步骤 5：按空间裁剪，降低拼接前的内存占用 ===
                     if lon_max < lon_min:
-                        # Trajectory crosses dateline - split into two regions
+                        # 轨迹跨越日期变更线，拆分为两个经度区域。
                         ds1 = ds.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, 360))
                         ds2 = ds.sel(lat=slice(lat_min, lat_max), lon=slice(0, lon_max))
                         ds_cropped = xr.concat([ds1, ds2], dim='lon')
@@ -366,21 +366,21 @@ def match_era5_wave(
             if not datasets:
                 fail_stats['load_failed'] += 1
                 if traj_idx < 5 or len(load_errors) > 0:
-                    print(f"\n[Traj {traj_idx}] 无法加载任何ERA5波浪文件。时间范围: {time_min} to {time_max}")
+                    print(f"\n[轨迹 {traj_idx}] 无法加载任何 ERA5 波浪文件。时间范围: {time_min} 至 {time_max}")
                     if load_errors:
                         print(f"  加载错误: {load_errors[:3]}")
                 continue
 
-            # Concatenate already-cropped small datasets (total ~hundreds of MB, no OOM)
+            # 拼接已裁剪的数据集，总量通常为数百 MB。
             ds_era5_wave = xr.concat(datasets, dim='time')
 
         except Exception as e:
             fail_stats['concat_failed'] += 1
             if traj_idx < 5:
-                print(f"\n[Traj {traj_idx}] Concat失败: {e}")
+                print(f"\n[轨迹 {traj_idx}] 数据拼接失败: {e}")
             continue
 
-        # Prepare interpolation coordinate arrays
+        # 构造插值坐标数组。
         lats = xr.DataArray(traj_df['latitude'], dims="points")
         lons = xr.DataArray(traj_df['longitude'], dims="points")
         times = xr.DataArray(traj_df['time'], dims="points")
@@ -398,7 +398,7 @@ def match_era5_wave(
                     traj_df['era5_wave_dir_cos'].to_numpy(copy=True),
                 )
 
-            # === Coast-fill：海岸外推 ===
+            # === 海岸缺测填补（coast-fill）===
             # ERA5 波浪模型只在海洋格点有值，陆地/海冰格点为 NaN。
             # 当浮标位于海岸线、小岛或极地海冰附近时，周围所有 ERA5 格点均为
             # NaN，导致线性插值（以及 ocean-masked 加权插值）完全失败（全 NaN）。
@@ -454,7 +454,7 @@ def match_era5_wave(
                 )
                 wave_results[var] = interp_result.values
 
-            # Add wave height and period directly
+            # 直接写入有效波高和平均波周期。
             traj_df['era5_swh'] = wave_results['swh']
             traj_df['era5_mwp'] = wave_results['mwp']
 
@@ -517,11 +517,11 @@ def match_era5_wave(
                         finite_difference.astype(np.float32, copy=False)
                     )
 
-            # Check interpolation results
+            # 检查插值结果。
             n_nan = int(np.isnan(wave_results['swh']).sum())
             n_total = len(wave_results['swh'])
 
-            # Drop rows where interpolation failed
+            # 删除插值失败的记录。
             # 在 dropna 前保留原始坐标信息，用于 all_nan 时的诊断打印
             orig_lat_min = traj_df['latitude'].min()
             orig_lat_max = traj_df['latitude'].max()
@@ -540,14 +540,18 @@ def match_era5_wave(
             if len(traj_df) == 0:
                 fail_stats['all_nan'] += 1
                 if fail_stats['all_nan'] <= 10:
-                    print(f"\n[Traj {traj_idx}] 插值后全为NaN ({n_nan}/{n_total} NaN)")
-                    print(f"  轨迹时间范围: {time_min} to {time_max}")
+                    print(f"\n[轨迹 {traj_idx}] 插值后全为 NaN ({n_nan}/{n_total})")
+                    print(f"  轨迹时间范围: {time_min} 至 {time_max}")
                     print(f"  轨迹经纬度范围: lat=[{orig_lat_min:.2f}, {orig_lat_max:.2f}], "
                           f"lon=[{orig_lon_min:.2f}, {orig_lon_max:.2f}]")
                     print(f"  插值用 lon_360 范围: [{float(lons_360.min()):.2f}, {float(lons_360.max()):.2f}]")
                     print(f"  ERA5波浪 lon范围: [{float(ds_era5_wave.lon.min()):.2f}, {float(ds_era5_wave.lon.max()):.2f}]")
                     print(f"  ERA5波浪 lat范围: [{float(ds_era5_wave.lat.min()):.2f}, {float(ds_era5_wave.lat.max()):.2f}]")
-                    print(f"  ERA5波浪时间范围: {ds_era5_wave.time.values[0]} to {ds_era5_wave.time.values[-1]}")
+                    print(
+                        "  ERA5 波浪时间范围: "
+                        f"{ds_era5_wave.time.values[0]} 至 "
+                        f"{ds_era5_wave.time.values[-1]}"
+                    )
                     print(f"  ERA5时间dtype: {ds_era5_wave.time.dtype}  轨迹时间dtype: {times.dtype}")
                     print(f"  ERA5时间int64[0]: {ds_era5_wave.time.values[0].astype('int64')}  轨迹时间int64[0]: {times.values[0].astype('int64')}")
                 continue
@@ -556,18 +560,21 @@ def match_era5_wave(
                 continue
             else:
                 if n_nan > 0 and traj_idx < 3:
-                    print(f"\n[Traj {traj_idx}] 部分NaN: {n_nan}/{n_total} ({100*n_nan/n_total:.1f}%)")
+                    print(
+                        f"\n[轨迹 {traj_idx}] 部分为 NaN: "
+                        f"{n_nan}/{n_total} ({100*n_nan/n_total:.1f}%)"
+                    )
                 final_trajectories.append(traj_df)
                 fail_stats['success'] += 1
 
         except Exception as e:
             fail_stats['interp_failed'] += 1
-            print(f"\n[Traj {traj_idx}] 插值错误: {e}")
-            print(f"  轨迹时间范围: {time_min} to {time_max}")
+            print(f"\n[轨迹 {traj_idx}] 插值错误: {e}")
+            print(f"  轨迹时间范围: {time_min} 至 {time_max}")
             continue
 
         finally:
-            # Cleanup
+            # 释放当前轨迹使用的临时对象。
             try:
                 ds_era5_wave.close()
             except Exception:
@@ -583,7 +590,7 @@ def match_era5_wave(
 
     print(f"插值完成。共 {len(final_trajectories)} 段轨迹获得了波浪数据。")
 
-    # Print detailed failure statistics
+    # 输出详细的失败类型统计。
     print("\n=== 处理统计 ===")
     print(f"总轨迹数: {len(trajectories_with_wind)}")
     print(f"成功: {fail_stats['success']}")

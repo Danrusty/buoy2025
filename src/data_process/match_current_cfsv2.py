@@ -28,7 +28,7 @@ def match_cfsv2_currents(processed_buoy_file, cfsv2_dir, output_dir):
         with open(processed_buoy_file, 'rb') as f:
             buoy_trajectories = pickle.load(f)
     except FileNotFoundError:
-        print(f"错误: 浮标数据文件未找到 at '{processed_buoy_file}'")
+        print(f"错误: 未找到浮标数据文件 '{processed_buoy_file}'")
         return
     print(f"加载了 {len(buoy_trajectories)} 段连续的无水帆浮标轨迹。")
 
@@ -50,9 +50,9 @@ def match_cfsv2_currents(processed_buoy_file, cfsv2_dir, output_dir):
     print("正在合并数据集...")
     ds_cfsv2 = xr.merge([ds_u, ds_v])
 
-    # --- FIX: 删除重复的时间戳 ---
-    # open_mfdataset 会连接年度文件，可能导致交界处时间戳重复 (e.g., 2021-01-01 00:00 同时存在于2020和2021文件中)
-    # 这会导致插值错误 "Reindexing only valid with uniquely valued Index objects"
+    # 删除年度文件交界处可能重复的时间戳。
+    # 例如 2021-01-01 00:00 可能同时存在于 2020 和 2021 年文件中；
+    # 重复索引会导致 "Reindexing only valid with uniquely valued Index objects"。
     print("正在剔除数据中的重复时间戳...")
     _, unique_indices = np.unique(ds_cfsv2['time'], return_index=True)
     ds_cfsv2 = ds_cfsv2.isel(time=unique_indices)
