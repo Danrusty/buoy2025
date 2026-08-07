@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_orig_core6_v1",
+  "evaluation_split": "test",
+  "target_definition": {
+    "residual_u": "ve - cfsv2_u",
+    "residual_v": "vn - cfsv2_v"
+  },
+  "bias_definition": "mean(predicted residual - observed residual)",
+  "subset_policy": "Each stated rectangle is evaluated independently; CMS overall uses the deduplicated union.",
+  "regional_model": {
+    "feature_columns": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ],
+    "scaler": "regional train-only StandardScaler"
+  },
+  "frozen_global_model": {
+    "onnx_path": "deployment/releases/wdf_core6_circular_mwd_v2/wdf_drifter.onnx",
+    "onnx_sha256": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941"
+  },
+  "subsets": {
+    "CMS_overall": {
+      "n_samples": 2927,
+      "n_original_ids": 4,
+      "regional_mlp": {
+        "r2_u": -0.056290376379669604,
+        "r2_v": -0.07626096287209272,
+        "r2_joint": -0.06627566962588116,
+        "rmse": 0.3907447387234846,
+        "mae": 0.29910814933990154,
+        "status": "ok",
+        "bias_u": 0.10603499249690398,
+        "bias_v": -0.09724728222494117,
+        "bias_vector_magnitude": 0.14387652183019942
+      },
+      "frozen_global_mlp": {
+        "r2_u": 0.11986026944432038,
+        "r2_v": 0.1497884003837373,
+        "r2_joint": 0.13482433491402884,
+        "rmse": 0.35238292887472095,
+        "mae": 0.2633931382561944,
+        "status": "ok",
+        "bias_u": -0.005401365783512287,
+        "bias_v": -0.07041129778747977,
+        "bias_vector_magnitude": 0.07061816769390475
+      },
+      "regional_minus_global": {
+        "r2_joint": -0.20110000453991,
+        "rmse": 0.03836180984876364
+      }
+    },
+    "Bohai_Yellow_Sea": {
+      "n_samples": 0,
+      "n_original_ids": 0,
+      "regional_mlp": {
+        "status": "no_samples",
+        "r2_u": null,
+        "r2_v": null,
+        "r2_joint": null,
+        "rmse": null,
+        "bias_u": null,
+        "bias_v": null
+      },
+      "frozen_global_mlp": {
+        "status": "no_samples",
+        "r2_u": null,
+        "r2_v": null,
+        "r2_joint": null,
+        "rmse": null,
+        "bias_u": null,
+        "bias_v": null
+      },
+      "regional_minus_global": {
+        "r2_joint": null,
+        "rmse": null
+      }
+    },
+    "East_China_Sea": {
+      "n_samples": 1869,
+      "n_original_ids": 4,
+      "regional_mlp": {
+        "r2_u": 0.015022743388747872,
+        "r2_v": -0.18037245939820612,
+        "r2_joint": -0.08267485800472912,
+        "rmse": 0.3717496288658184,
+        "mae": 0.2856698173222592,
+        "status": "ok",
+        "bias_u": 0.021833537346267362,
+        "bias_v": -0.14888636397502802,
+        "bias_vector_magnitude": 0.15047874511290746
+      },
+      "frozen_global_mlp": {
+        "r2_u": 0.061862237051441005,
+        "r2_v": 0.09661560350259457,
+        "r2_joint": 0.07923892027701779,
+        "rmse": 0.3429617654240475,
+        "mae": 0.2564051357513257,
+        "status": "ok",
+        "bias_u": -0.07653451364870104,
+        "bias_v": -0.11061597312489149,
+        "bias_vector_magnitude": 0.13451180353340714
+      },
+      "regional_minus_global": {
+        "r2_joint": -0.1619137782817469,
+        "rmse": 0.028787863441770922
+      }
+    },
+    "Northern_South_China_Sea": {
+      "n_samples": 1058,
+      "n_original_ids": 2,
+      "regional_mlp": {
+        "r2_u": -0.3833624374026414,
+        "r2_v": -0.002953312773568584,
+        "r2_joint": -0.193157875088105,
+        "rmse": 0.4222172810805897,
+        "mae": 0.32284750901946063,
+        "status": "ok",
+        "bias_u": 0.25478028519684714,
+        "bias_v": -0.006024745560562791,
+        "bias_vector_magnitude": 0.25485150830249426
+      },
+      "frozen_global_mlp": {
+        "r2_u": 0.006837289678956915,
+        "r2_v": 0.15548854199406048,
+        "r2_joint": 0.0811629158365087,
+        "rmse": 0.3684375912139558,
+        "mae": 0.2757377286924891,
+        "status": "ok",
+        "bias_u": 0.12025823096510566,
+        "bias_v": 0.0006118952235055555,
+        "bias_vector_magnitude": 0.12025978767078065
+      },
+      "regional_minus_global": {
+        "r2_joint": -0.2743207909246137,
+        "rmse": 0.053779689866633895
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "filename": "wdf_cms_orig_core6_v1.onnx",
+  "sha256": "5e89aeac80c96b122a957b2fb849db65f984667779712ef4b8a602ced4b3eb83",
+  "ir_version": 7,
+  "opset_imports": [
+    {
+      "domain": "ai.onnx",
+      "version": 12
+    }
+  ],
+  "producer_name": "pytorch",
+  "producer_version": "2.5.1",
+  "input": {
+    "name": "input",
+    "shape": [
+      "batch_size",
+      6
+    ],
+    "element_type": 1
+  },
+  "output": {
+    "name": "output",
+    "shape": [
+      "batch_size",
+      2
+    ],
+    "element_type": 1
+  },
+  "custom_metadata": {
+    "model_version": "wdf_cms_orig_core6_v1",
+    "training_run": "trained_models/wdf_cms_orig_core6_v1",
+    "feature_columns": "[\"era5_u10\",\"era5_v10\",\"era5_swh\",\"era5_mwp\",\"era5_wave_dir_sin\",\"era5_wave_dir_cos\"]",
+    "target_columns": "[\"residual_u\",\"residual_v\"]",
+    "target_definition": "residual_u=ve-cfsv2_u;residual_v=vn-cfsv2_v",
+    "scaler_inside_graph": "true",
+    "wave_direction_convention": "{\"source\":\"ERA5 mean_wave_direction\",\"meaning\":\"coming-from\",\"zero_direction\":\"north\",\"positive_rotation\":\"clockwise\",\"add_180_degrees\":false,\"sin_definition\":\"sin(deg2rad(mwd))\",\"cos_definition\":\"cos(deg2rad(mwd))\"}"
+  }
+}

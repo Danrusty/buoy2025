@@ -163,3 +163,90 @@ Required gates:
 
 Formal training results and Windows acceptance details are appended only after
 their corresponding gates pass.
+
+## Formal training result
+
+The formal run used Miniforge3 environment `buoy-drifter`, CUDA on an NVIDIA
+GeForce RTX 4070 Ti SUPER, and training-code commit
+`b9bcfc2df853117863da28e3d8e734a3f01d96a9`.
+
+- train/validation/test IDs: 15 / 4 / 4
+- train/validation/test rows: 14,173 / 3,974 / 2,927
+- pairwise ID intersections: 0
+- checkpoint epoch: 1
+- early stopping: epoch 21 after 20 non-improving epochs
+- parameter count: 433,538
+- all 15 frozen configuration fields: identical to global core6
+
+Regional linear fit:
+
+```text
+A = [[ 0.00530079, -0.00578002],
+     [-0.00217295,  0.00598808]]
+b = [-0.07374081, -0.04901418]
+```
+
+- effective WDF: `0.00564443`
+- cross-wind coefficient: `0.00180353`
+- test joint R2: `0.011372`
+- test RMSE: `0.376188 m/s`
+
+CMS regional MLP test result:
+
+- R2 u / v / joint:
+  `-0.056290 / -0.076261 / -0.066276`
+- RMSE: `0.390745 m/s`
+- MAE: `0.299108 m/s`
+
+Frozen global MLP on the identical CMS test rows:
+
+- R2 u / v / joint:
+  `0.119860 / 0.149788 / 0.134824`
+- RMSE: `0.352383 m/s`
+- MAE: `0.263393 m/s`
+
+The regional MLP is worse than both the regional linear baseline and the
+frozen global MLP. The regional linear effective WDF is also smaller, not
+larger, than the global value (`0.00564` versus `0.01367`). This controlled run
+therefore does not support the hypothesis that geographic restriction alone
+reveals a stronger learnable wind-drift signal.
+
+The most direct explanation is inadequate independent regional support: only
+23 physical IDs, with four validation and four test IDs, no BYS observations,
+large target-mean shifts between splits, and a frozen 433k-parameter network.
+No architecture, target, loss, feature, weighting or hyperparameter change was
+made to compensate.
+
+The requested ONNX is frozen as an experimental result for reproducibility and
+Windows chain validation, but it is not recommended for `onnx_active` or
+operational oil-spill activation based on these held-out results.
+
+## ONNX freeze
+
+- authoritative file: `wdf_cms_orig_core6_v1.onnx`
+- SHA256:
+  `5e89aeac80c96b122a957b2fb849db65f984667779712ef4b8a602ced4b3eb83`
+- PyTorch/ONNX maximum absolute difference: `2.2351742e-08`
+- acceptance threshold: `< 1e-5`
+- dynamic batches passed: 1, 3, 17
+- unchanged-Fortran compatibility alias: `wdf_drifter.onnx`
+- alias and authoritative ONNX are byte-identical
+
+## Windows acceptance
+
+Completed on 2026-08-07 in:
+
+`D:\OilspillModel\OilSpillModel\ModelRun\release_onnx\wdf_cms_orig_core6_v1`
+
+- VS2022 17.14.29 / MSVC 19.44.35225 C++ wrapper build: passed
+- Intel oneAPI ifx 2022.1.0 Build 20220316 compile/link: passed
+- ONNX Runtime 1.17.1 Fortran -> C++ -> ONNX inference: passed
+- maximum absolute difference: `2.2352e-08`
+- required tolerance: `< 1e-4`
+- validated ONNX SHA256:
+  `5e89aeac80c96b122a957b2fb849db65f984667779712ef4b8a602ced4b3eb83`
+
+The old release root and `onnx_active` were checked before and after staging;
+both remain at frozen global SHA256
+`787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941`.
+Only the new versioned staging directory was created.

@@ -1,0 +1,124 @@
+{
+  "all_frozen_fields_identical": true,
+  "global_config": "trained_models/ablation_circular_mwd_v2_final/core_6/model_config.json",
+  "regional_config": "trained_models/wdf_cms_orig_core6_v1/model_config.json",
+  "comparisons": {
+    "architecture": {
+      "global": [
+        6,
+        512,
+        512,
+        256,
+        128,
+        2
+      ],
+      "regional": [
+        6,
+        512,
+        512,
+        256,
+        128,
+        2
+      ],
+      "identical": true
+    },
+    "batch_norm": {
+      "global": true,
+      "regional": true,
+      "identical": true
+    },
+    "dropout": {
+      "global": 0.1,
+      "regional": 0.1,
+      "identical": true
+    },
+    "feature_columns": {
+      "global": [
+        "era5_u10",
+        "era5_v10",
+        "era5_swh",
+        "era5_mwp",
+        "era5_wave_dir_sin",
+        "era5_wave_dir_cos"
+      ],
+      "regional": [
+        "era5_u10",
+        "era5_v10",
+        "era5_swh",
+        "era5_mwp",
+        "era5_wave_dir_sin",
+        "era5_wave_dir_cos"
+      ],
+      "identical": true
+    },
+    "target_columns": {
+      "global": [
+        "residual_u",
+        "residual_v"
+      ],
+      "regional": [
+        "residual_u",
+        "residual_v"
+      ],
+      "identical": true
+    },
+    "batch_size": {
+      "global": 8192,
+      "regional": 8192,
+      "identical": true
+    },
+    "max_epochs": {
+      "global": 200,
+      "regional": 200,
+      "identical": true
+    },
+    "early_stopping_patience": {
+      "global": 20,
+      "regional": 20,
+      "identical": true
+    },
+    "checkpoint_monitor": {
+      "global": "validation_loss",
+      "regional": "validation_loss",
+      "identical": true
+    },
+    "learning_rate": {
+      "global": 0.0003,
+      "regional": 0.0003,
+      "identical": true
+    },
+    "minimum_learning_rate": {
+      "global": 1e-06,
+      "regional": 1e-06,
+      "identical": true
+    },
+    "optimizer": {
+      "global": "AdamW",
+      "regional": "AdamW",
+      "identical": true
+    },
+    "weight_decay": {
+      "global": 0.0001,
+      "regional": 0.0001,
+      "identical": true
+    },
+    "scheduler": {
+      "global": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+      "regional": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+      "identical": true
+    },
+    "random_seed": {
+      "global": 42,
+      "regional": 42,
+      "identical": true
+    }
+  },
+  "explicitly_excluded_changes": [
+    "fixed 0.03 correction",
+    "regional target correction",
+    "LSTM or sequence model",
+    "new input features",
+    "hyperparameter search",
+    "separate subregion models"
+  ]
+}

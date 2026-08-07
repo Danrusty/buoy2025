@@ -123,6 +123,8 @@ def _write_handoff_readme(
 - Intended Windows staging directory:
   `{WINDOWS_STAGING_PATH}`
 - `onnx_active` is not changed by this handoff.
+- Activation recommendation:
+  `{manifest['selection_assessment']['activation_recommendation']}`
 
 The two ONNX filenames are byte-identical. The named CMS file is the
 authoritative handoff artifact; the alias keeps the existing
@@ -167,6 +169,11 @@ performance claim can be made.
 - Regional CMS test RMSE: {regional['rmse']:.6f} m/s
 - Frozen global joint R2 on the same rows: {global_model['r2_joint']:.6f}
 - Frozen global RMSE on the same rows: {global_model['rmse']:.6f} m/s
+
+The regional MLP is worse than both the regional linear baseline and the
+frozen global MLP on the same test rows. This release freezes the requested
+experiment for reproducibility and Windows handoff; it is not selected for
+operational activation.
 
 ## Verification
 
@@ -234,11 +241,36 @@ def build_cms_release(training_commit: str) -> dict:
     linear_analysis = json.loads(
         (RUN_DIR / "regional_linear_analysis.json").read_text(encoding="utf-8")
     )
+    regional_test = manifest["metrics"]["test"]
+    linear_test = manifest["metrics"]["linear_baseline_test"]
+    global_test = evaluation["subsets"]["CMS_overall"]["frozen_global_mlp"]
+    selection_assessment = {
+        "regional_beats_linear_rmse": (
+            regional_test["rmse"] < linear_test["rmse"]
+        ),
+        "regional_beats_frozen_global_rmse_on_same_rows": (
+            regional_test["rmse"] < global_test["rmse"]
+        ),
+        "regional_minus_linear_joint_r2": (
+            regional_test["r2_joint"] - linear_test["r2_joint"]
+        ),
+        "regional_minus_frozen_global_joint_r2_on_same_rows": (
+            regional_test["r2_joint"] - global_test["r2_joint"]
+        ),
+        "activation_recommendation": "do_not_activate",
+        "reason": (
+            "Regional MLP underperforms both the regional linear baseline and "
+            "the frozen global MLP on the identical CMS test rows."
+        ),
+    }
 
     manifest.update(
         {
             "created_at_utc": datetime.now(timezone.utc).isoformat(),
-            "scientific_status": "frozen_single_cms_regional_core6",
+            "scientific_status": (
+                "frozen_experimental_cms_regional_core6_not_selected"
+            ),
+            "selection_assessment": selection_assessment,
             "regional_scope": {
                 "name": "China Marginal Seas",
                 "expression": "BYS OR ECS OR NSCS",

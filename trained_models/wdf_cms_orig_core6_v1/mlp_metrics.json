@@ -1,0 +1,27 @@
+{
+  "checkpoint": {
+    "path": "trained_models/wdf_cms_orig_core6_v1/best_mlp.pth",
+    "best_epoch": 1,
+    "validation_loss": 0.1353488564491272,
+    "validation_r2_joint": -0.035976252008442344,
+    "parameter_count": 433538
+  },
+  "test": {
+    "r2_u": -0.05629037607771381,
+    "r2_v": -0.07626096254252612,
+    "r2_joint": -0.06627566931011997,
+    "rmse": 0.39074473845004226,
+    "mae": 0.2991081491888142
+  },
+  "linear_baseline_test": {
+    "r2_u": 0.02430153726708406,
+    "r2_v": -0.0015580334693598985,
+    "r2_joint": 0.011371751898862081,
+    "rmse": 0.37618766455675207,
+    "mae": 0.28095429658435295
+  },
+  "mlp_vs_linear": {
+    "rmse_improvement_percent": -3.8696308424791797,
+    "r2_joint_difference": -0.07764742120898205
+  }
+}

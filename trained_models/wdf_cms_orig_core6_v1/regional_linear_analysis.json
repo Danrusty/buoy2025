@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_orig_core6_v1",
+  "fit_scope": "CMS training split",
+  "equation": "residual = A @ [era5_u10, era5_v10] + intercept",
+  "target_definition": {
+    "residual_u": "ve - cfsv2_u",
+    "residual_v": "vn - cfsv2_v"
+  },
+  "A_matrix": [
+    [
+      0.005300786346197128,
+      -0.005780019797384739
+    ],
+    [
+      -0.0021729543805122375,
+      0.005988077726215124
+    ]
+  ],
+  "intercept": [
+    -0.07374081015586853,
+    -0.04901418089866638
+  ],
+  "effective_wdf": 0.005644432036206126,
+  "effective_wdf_definition": "trace(A) / 2",
+  "cross_wind_coefficient": 0.0018035327084362507,
+  "cross_wind_definition": "(A[1,0] - A[0,1]) / 2",
+  "cross_wind_sign_convention": "positive rotates the wind vector counter-clockwise",
+  "symmetric_off_diagonal_mean": -0.003976487088948488,
+  "residual_summary": {
+    "train": {
+      "n_samples": 14173,
+      "mean": {
+        "residual_u": -0.08048300658539775,
+        "residual_v": -0.05245882017328122
+      },
+      "std_population": {
+        "residual_u": 0.31775866818890286,
+        "residual_v": 0.3092745585221726
+      }
+    },
+    "val": {
+      "n_samples": 3974,
+      "mean": {
+        "residual_u": 0.03522569937063701,
+        "residual_v": 0.042959243186584624
+      },
+      "std_population": {
+        "residual_u": 0.3571239748599933,
+        "residual_v": 0.3654697229626687
+      }
+    },
+    "test": {
+      "n_samples": 2927,
+      "mean": {
+        "residual_u": -0.04780624848290273,
+        "residual_v": 0.049813021490612806
+      },
+      "std_population": {
+        "residual_u": 0.3947108753320294,
+        "residual_v": 0.3616903644234033
+      }
+    },
+    "cms_overall": {
+      "n_samples": 21074,
+      "mean": {
+        "residual_u": -0.05412487483844487,
+        "residual_v": -0.020260800606880694
+      },
+      "std_population": {
+        "residual_u": 0.33996110321055073,
+        "residual_v": 0.3313888681426901
+      }
+    }
+  },
+  "validation_metrics": {
+    "r2_u": -0.0767997279616468,
+    "r2_v": 0.012040128399293692,
+    "r2_joint": -0.032379799781176555,
+    "rmse": 0.36694163186952017,
+    "mae": 0.2811465326864674
+  },
+  "test_metrics": {
+    "r2_u": 0.02430153726708406,
+    "r2_v": -0.0015580334693598985,
+    "r2_joint": 0.011371751898862081,
+    "rmse": 0.37618766455675207,
+    "mae": 0.28095429658435295
+  },
+  "frozen_global_reference": {
+    "path": "trained_models/ablation_circular_mwd_v2_final/core_6/linear_baseline_metrics.json",
+    "A_matrix": [
+      [
+        0.013165904209017754,
+        0.00041059328941628337
+      ],
+      [
+        -0.0006033229874446988,
+        0.014175951480865479
+      ]
+    ],
+    "intercept": [
+      -0.006580679677426815,
+      0.0001374587882310152
+    ],
+    "effective_wdf": 0.013670927844941616,
+    "cross_wind_coefficient": -0.0005069581384304911
+  }
+}
