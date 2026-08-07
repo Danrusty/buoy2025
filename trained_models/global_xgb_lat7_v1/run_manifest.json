@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "run_name": "global_xgb_lat7_v1",
+  "created_at_utc": "2026-08-07T12:56:21.587077+00:00",
+  "branch": "wdf_global_xgb_lat7_v1",
+  "training_code_git_commit": "5659348dfc56ac926eb2fdc14038b6615ea16158",
+  "lineage": {
+    "shared_experiment": "global_factorial_v1",
+    "data_manifest": "trained_models/global_factorial_v1/data_manifest.json",
+    "data_manifest_sha256": "b683aa9f1bc484474db7fc26442000f73a5eef7b5b022e138587539aa63a0653",
+    "frozen_reference_replay": "trained_models/global_factorial_v1/frozen_global_replay.json",
+    "frozen_reference_replay_sha256": "784b1961974e7f982a41490f0d5b2148f7949ff43bfcb213b7f4b6f88c3c1fb5"
+  },
+  "features": [
+    "era5_u10",
+    "era5_v10",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos",
+    "sin_latitude"
+  ],
+  "targets": {
+    "residual_u": "ve - cfsv2_u",
+    "residual_v": "vn - cfsv2_v"
+  },
+  "selected_candidate": "lossguide128_eta003",
+  "artifacts": {
+    "selection_lock": {
+      "path": "trained_models/global_xgb_lat7_v1/selection_lock.json",
+      "sha256": "6fa8be1fc8432e03b803e808b1e01d75409bda0974a7b7d1c864f4fb04e00b79"
+    },
+    "models": [
+      {
+        "target": "residual_u",
+        "path": "trained_models/global_xgb_lat7_v1/model_residual_u.ubj",
+        "sha256": "890a83082171125ffc7d8ff08adc49bbf68221fc675b874607874b17011c50b7",
+        "boosted_rounds": 280
+      },
+      {
+        "target": "residual_v",
+        "path": "trained_models/global_xgb_lat7_v1/model_residual_v.ubj",
+        "sha256": "72d3d5d9e0599daf618fba280438bedc0fa3eee45178ae40c07bafe2ec0b4ea5",
+        "boosted_rounds": 225
+      }
+    ],
+    "metrics": {
+      "path": "trained_models/global_xgb_lat7_v1/metrics.json",
+      "sha256": "a5a93dc08994e5be43ea725304f890ad83a0d45fec04bb80dd24c1719e9fe5bf"
+    },
+    "fixed_test_io": {
+      "path": "trained_models/global_xgb_lat7_v1/fixed_test_io.json",
+      "sha256": "35db5d8eb034c00f229538ce0a2861c67d90812ef3542b218291903f6d54a8c2"
+    },
+    "prediction_cache": {
+      "path": "processed_data/global_factorial_v1/xgb_lat7_test_pred.npy",
+      "shape": [
+        2425415,
+        2
+      ],
+      "dtype": "float32",
+      "sha256": "d3d3fb64fa3599984d111ba49f0d21ce6e25908c593da6679d170164c8d211b9"
+    }
+  },
+  "software": {
+    "numpy": "2.4.0",
+    "xgboost": "3.2.0",
+    "xgboost_build_info": {
+      "BUILTIN_PREFETCH_PRESENT": true,
+      "CUDA_VERSION": [
+        12,
+        9
+      ],
+      "DEBUG": false,
+      "GCC_VERSION": [
+        14,
+        3,
+        0
+      ],
+      "GLIBC_VERSION": [
+        2,
+        17
+      ],
+      "MM_PREFETCH_PRESENT": true,
+      "NCCL_VERSION": [
+        2,
+        30,
+        4
+      ],
+      "THRUST_VERSION": [
+        3,
+        0,
+        3
+      ],
+      "USE_CUDA": true,
+      "USE_DLOPEN_NCCL": false,
+      "USE_FEDERATED": false,
+      "USE_NCCL": true,
+      "USE_NVCOMP": false,
+      "USE_OPENMP": true,
+      "USE_RMM": false,
+      "libxgboost": "/home/dan/miniforge3/envs/buoy-drifter/lib/libxgboost.so"
+    }
+  },
+  "log_path": "logs/global_xgb_lat7_v1_20260807_205501.log"
+}
