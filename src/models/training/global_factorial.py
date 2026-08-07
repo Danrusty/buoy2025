@@ -508,8 +508,9 @@ def prepare_cache(
 def validate_cache(
     artifact_manifest_path: Path = DATA_MANIFEST_PATH,
     verify_checksums: bool = False,
+    split_names: tuple[str, ...] = SPLIT_NAMES,
 ) -> dict[str, Any]:
-    """校验缓存形状、类型、血缘，并可选重算 SHA256。"""
+    """校验指定集合的缓存形状、类型、血缘，并可选重算 SHA256。"""
     artifact_manifest_path = artifact_manifest_path.resolve()
     payload = json.loads(
         artifact_manifest_path.read_text(encoding="utf-8")
@@ -525,7 +526,13 @@ def validate_cache(
     ):
         raise ValueError("cached lat7 feature order is invalid")
 
-    for split_name in SPLIT_NAMES:
+    unknown_splits = set(split_names) - set(SPLIT_NAMES)
+    if unknown_splits:
+        raise ValueError(f"未知 split：{sorted(unknown_splits)}")
+    if not split_names:
+        raise ValueError("split_names 不能为空")
+
+    for split_name in split_names:
         for kind, record in payload["cache_files"][split_name].items():
             path = PROJECT_ROOT / record["path"]
             if not path.is_file():
@@ -578,6 +585,7 @@ def load_cached_split(
     payload = validate_cache(
         artifact_manifest_path=artifact_manifest_path,
         verify_checksums=False,
+        split_names=(split_name,),
     )
     return {
         kind: np.load(PROJECT_ROOT / record["path"], mmap_mode="r")

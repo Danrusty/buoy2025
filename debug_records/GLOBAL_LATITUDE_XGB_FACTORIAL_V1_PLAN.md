@@ -63,6 +63,24 @@ Git 忽略的 `processed_data/global_factorial_v1/`。
 预先声明的候选组合只在 validation 集评价；配置锁定后才允许评价 test 集。
 两个 XGBoost 实验使用完全相同的候选空间和选择规则。
 
+固定公共参数为 `reg:squarederror`、`hist`、`device=cuda`、`max_bin=256`、
+`subsample=0.8`、`colsample_bytree=1.0`、`seed=42`。最多训练 1000 轮，
+validation RMSE 连续 50 轮不改善即 early stopping，并保留最佳迭代。
+
+候选配置在访问 test 前预先冻结为：
+
+| 名称 | grow policy | 深度/叶数 | eta | min child weight | L2 |
+|---|---|---:|---:|---:|---:|
+| `depth6_eta005` | depthwise | depth 6 | 0.05 | 128 | 10 |
+| `depth8_eta003` | depthwise | depth 8 | 0.03 | 128 | 10 |
+| `lossguide64_eta005` | lossguide | 64 leaves | 0.05 | 128 | 10 |
+| `lossguide128_eta003` | lossguide | 128 leaves | 0.03 | 256 | 20 |
+
+每个候选分别训练 u、v booster，再以两分量合并后的 validation RMSE 选择唯一
+配置；相同时优先总树数较少者，其次按上表顺序。选择结果、模型 SHA256 和
+validation 记录先写入不可回改的 `selection_lock.json`，随后才加载 test 特征
+和 target。
+
 同一时刻只运行一个高显存训练任务。不会争用训练资源的 CPU 数据准备、校验和
 报告生成可以并行。
 
