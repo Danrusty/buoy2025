@@ -8,7 +8,7 @@ import pickle
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import numpy as np
 import onnxruntime as ort
@@ -162,11 +162,15 @@ class FittedAdapter:
     basis_rms_scales: tuple[float, ...]
     training_original_ids: tuple[str, ...]
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(
+        self,
+        *,
+        model_version: str = MODEL_VERSION,
+    ) -> dict[str, Any]:
         spec = ADAPTER_SPECS[self.spec_name]
         return {
             "schema_version": 1,
-            "model_version": MODEL_VERSION,
+            "model_version": model_version,
             "adapter_spec": asdict(spec),
             "lambda": self.lambda_value,
             "coefficients": {
@@ -346,6 +350,12 @@ def build_adapter_data(
     frames: list[pd.DataFrame],
     selected_ids: Iterable[str],
     session: ort.InferenceSession,
+    *,
+    membership_function: Callable[
+        [np.ndarray | pd.Series, np.ndarray | pd.Series],
+        dict[str, np.ndarray],
+    ] = region_memberships,
+    required_membership: str | None = "CMS",
 ) -> AdapterData:
     selected_set = {str(value) for value in selected_ids}
     pieces = []
@@ -402,12 +412,19 @@ def build_adapter_data(
         ["output"],
         {"input": features},
     )[0].astype(np.float64)
-    memberships = region_memberships(
+    memberships = membership_function(
         combined["latitude"],
         combined["longitude"],
     )
-    if not memberships["CMS"].all():
-        raise RuntimeError("filtered CMS 数据包含区域外行。")
+    if required_membership is not None:
+        if required_membership not in memberships:
+            raise KeyError(
+                f"membership 缺少必需区域 {required_membership!r}。"
+            )
+        if not memberships[required_membership].all():
+            raise RuntimeError(
+                f"filtered 数据包含 {required_membership} 区域外行。"
+            )
     return AdapterData(
         frame=combined,
         features=features.astype(np.float64),
@@ -683,9 +700,25 @@ def compare_predictions(
 def compare_by_region(
     data: AdapterData,
     adapted_prediction: np.ndarray,
+    *,
+    region_names: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     result = {}
-    for name in ("CMS", "BYS", "ECS", "NSCS"):
+    if region_names is None:
+        preferred = ("CMS", "BYS", "ECS", "NSCS")
+        names = [
+            name for name in preferred
+            if name in data.memberships
+        ]
+        names.extend(
+            name for name in data.memberships
+            if name not in names
+        )
+    else:
+        names = list(region_names)
+    for name in names:
+        if name not in data.memberships:
+            raise KeyError(f"未知 membership: {name}")
         mask = data.memberships[name]
         if not mask.any():
             result[name] = {
@@ -853,6 +886,7 @@ def run_nested_development_cv(
     outer_splits: int = OUTER_SPLITS,
     inner_splits: int = INNER_SPLITS,
     seed: int = RANDOM_SEED,
+    model_version: str = MODEL_VERSION,
 ) -> dict[str, Any]:
     prediction = np.empty_like(data.target)
     correction = np.empty_like(data.target)
@@ -896,7 +930,9 @@ def run_nested_development_cv(
                     for key, value in selection.items()
                     if key != "candidate_results"
                 },
-                "selected_adapter": adapter.to_dict(),
+                "selected_adapter": adapter.to_dict(
+                    model_version=model_version,
+                ),
                 "validation_comparison": compare_predictions(
                     outer_validation,
                     outer_validation.global_prediction + fold_correction,
