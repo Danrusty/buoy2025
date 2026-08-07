@@ -68,3 +68,18 @@ This selected support reaches the dateline and must not be described as a
 China Marginal Seas-only dataset. It is an expanded East Asia–western North
 Pacific latitude band designed to obtain enough independent frozen-lineage
 IDs for the adapter generalization test.
+
+## User count-threshold override
+
+After reviewing only the count table above, and before any expanded-range
+adapter data were constructed or any target/model metric was evaluated, the
+user accepted the `105–170 E` candidate:
+
+```text
+96 total IDs / 75 train / 12 validation / 9 test / 454,892 rows
+```
+
+This explicitly overrides the initial `100 / 75 / 15 / 10` count requirement.
+The adapter experiment must therefore use `15–45 N, 105–170 E`. Rows from
+`170–180 E` are excluded. The 180 E count remains in the audit table only and
+must not be used to describe the selected modeling population.
