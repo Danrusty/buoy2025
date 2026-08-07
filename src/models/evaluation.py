@@ -25,10 +25,15 @@ def regression_metrics(
     if true64.ndim != 2 or true64.shape[1] != 2:
         raise ValueError(f"预期双输出数组 (N, 2)，实际为 {true64.shape}")
 
-    r2_values = np.asarray(
-        r2_score(true64, pred64, multioutput="raw_values"),
-        dtype=np.float64,
-    )
+    if len(true64) < 2:
+        # sklearn 1.8 returns a scalar NaN here even with
+        # multioutput="raw_values"; preserve the two-output contract.
+        r2_values = np.full(2, np.nan, dtype=np.float64)
+    else:
+        r2_values = np.asarray(
+            r2_score(true64, pred64, multioutput="raw_values"),
+            dtype=np.float64,
+        )
     error = pred64 - true64
     return {
         "r2_u": float(r2_values[0]),
