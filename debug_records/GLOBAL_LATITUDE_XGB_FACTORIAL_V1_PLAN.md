@@ -1,29 +1,28 @@
-# Global Latitude × Model-Class Factorial v1
+# Global 纬度信息 × 模型类型析因实验 v1
 
-## Research question
+## 研究问题
 
-The frozen global core6 MLP remains the reference model. This controlled
-factorial asks whether its weak trajectory impact is primarily associated with:
+冻结 global core6 MLP 继续作为基准模型。本轮受控析因实验用于判断其轨迹改善
+较弱主要与以下哪种原因有关：
 
-1. missing large-scale spatial information;
-2. limited function approximation by the MLP model class;
-3. both factors through a non-additive interaction; or
-4. neither factor.
+1. 缺少大尺度空间信息；
+2. MLP 模型类型的函数逼近能力有限；
+3. 两项因素都有效，且存在非加性交互；
+4. 两项因素均无效。
 
-The added spatial signal is intentionally limited to
-`sin(deg2rad(latitude))`. It is a latitude experiment, not a complete spatial
-encoding experiment.
+新增空间信号严格限定为 `sin(deg2rad(latitude))`。因此本轮是“纬度信息实验”，
+不是完整空间编码实验。
 
-## Four controlled cells
+## 四个受控实验格
 
-| Cell | Model | Inputs | Branch |
+| 实验格 | 模型 | 输入 | 分支 |
 |---|---|---|---|
-| A (frozen reference) | MLP | frozen core6 | `master@f2a0170` |
+| A（冻结基准） | MLP | 冻结 core6 | `master@f2a0170` |
 | B | MLP | core6 + `sin_latitude` | `wdf_global_mlp_lat7_v1` |
-| C | XGBoost | frozen core6 | `wdf_global_xgb_core6_v1` |
+| C | XGBoost | 冻结 core6 | `wdf_global_xgb_core6_v1` |
 | D | XGBoost | core6 + `sin_latitude` | `wdf_global_xgb_lat7_v1` |
 
-Core6 order is fixed:
+core6 输入顺序固定为：
 
 1. `era5_u10`
 2. `era5_v10`
@@ -32,79 +31,73 @@ Core6 order is fixed:
 5. `era5_wave_dir_sin`
 6. `era5_wave_dir_cos`
 
-For B and D, `sin_latitude` is appended as input 7.
+B 和 D 仅在第 7 列追加 `sin_latitude`。
 
-## Frozen controls
+## 冻结控制项
 
-- Dataset:
+- 数据集：
   `processed_data/trajectories_with_all_features_circular_mwd_v2.pkl`
-- Dataset SHA256:
+- 数据集 SHA256：
   `22ab0a32ff9472a6f8b8f57af5fd96b93cdeb76d45b4ef6b0a798fa1befb937e`
-- Exact `original_ID` split:
+- 精确继承的 `original_ID` 切分：
   `trained_models/ablation_circular_mwd_v2_final/core_6/split_manifest.json`
-- Split counts: train 1707 IDs, validation 366 IDs, test 366 IDs.
-- Targets remain `ve - cfsv2_u` and `vn - cfsv2_v`.
-- Row membership and row order are identical in all four cells.
-- No longitude, region label, new environmental feature, target correction,
-  sequence model, regional adapter, or per-region model is introduced.
-- Random seed remains 42.
+- 集合数量：train 1707 个 ID、validation 366 个 ID、test 366 个 ID。
+- target 保持 `ve - cfsv2_u` 和 `vn - cfsv2_v`。
+- 四格实验的样本成员、逐行顺序和 target 完全一致。
+- 不引入经度、区域标签、新环境特征、target correction、序列模型、
+  regional adapter 或分区域模型。
+- 随机种子保持 42。
 
-The shared cache stores core6 once and stores `sin_latitude` separately. This
-avoids duplicating the global arrays while allowing exact construction of
-either feature set. Its tracked provenance is
-`trained_models/global_factorial_v1/data_manifest.json`; the arrays themselves
-remain under ignored `processed_data/global_factorial_v1/`.
+共享缓存只保存一份 core6，并单独保存 `sin_latitude`，避免复制整套 global
+数组，同时可精确构造两种特征集合。缓存的受控溯源记录为
+`trained_models/global_factorial_v1/data_manifest.json`；实际数组保存在已被
+Git 忽略的 `processed_data/global_factorial_v1/`。
 
-## Training and model selection
+## 训练与模型选择
 
-Cell B keeps the frozen MLP architecture, MSE loss, AdamW optimizer, scheduler,
-batch size, maximum epochs, early-stopping rule, and random-seed strategy. Only
-the first layer changes from six to seven inputs.
+实验格 B 保持冻结 MLP 的网络结构、MSE loss、AdamW、scheduler、batch size、
+最大 epoch、early stopping 规则和随机种子策略。唯一结构变化是首层输入由
+6 维变为 7 维。
 
-Cells C and D use two independent XGBoost regressors, one for each target
-component. A small, predeclared search is evaluated only on validation data.
-The selected configuration is locked before the test set is evaluated. Both
-XGBoost cells use the same search space and selection rule.
+实验格 C 和 D 分别用两个独立 XGBoost regressor 预测 u、v target。小规模且
+预先声明的候选组合只在 validation 集评价；配置锁定后才允许评价 test 集。
+两个 XGBoost 实验使用完全相同的候选空间和选择规则。
 
-Only one memory-intensive GPU training job runs at a time. CPU-only
-preparation, validation, and reporting may overlap when they do not contend for
-the training job's resources.
+同一时刻只运行一个高显存训练任务。不会争用训练资源的 CPU 数据准备、校验和
+报告生成可以并行。
 
-## Evaluation
+## 统一评价
 
-Every cell is evaluated on the identical frozen test rows. The primary metrics
-are row-weighted `R2_u`, `R2_v`, joint R2 (the arithmetic mean of the two),
-RMSE, and MAE. The report additionally includes:
+四格实验均使用同一批冻结 test 行。主指标为逐行加权的 `R2_u`、`R2_v`、
+joint R2（两分量 R2 的算术平均）、RMSE 和 MAE。另外统一报告：
 
-- residual bias for u and v;
-- equal-weight macro-`original_ID` metrics;
-- per-ID RMSE win/tie/loss rate against frozen cell A;
-- fixed latitude-band diagnostics.
+- u、v residual bias；
+- 每个 `original_ID` 等权的宏平均指标；
+- 相对冻结实验格 A 的逐 ID RMSE 胜/平/负比例；
+- 固定纬度带诊断。
 
-The factorial effects are:
+析因效应定义为：
 
-- latitude under MLP: B − A;
-- model class without latitude: C − A;
-- latitude under XGBoost: D − C;
-- model class with latitude: D − B;
-- interaction: D − C − B + A.
+- MLP 下的纬度贡献：B − A；
+- 不含纬度时的模型类型贡献：C − A；
+- XGBoost 下的纬度贡献：D − C；
+- 含纬度时的模型类型贡献：D − B；
+- 交互项：D − C − B + A。
 
-## XGBoost efficiency gate
+## XGBoost 效率评价门槛
 
-Target-environment inference benchmarking is required only if an XGBoost cell
-shows a meaningful accuracy gain against A:
+只有 XGBoost 实验格相对 A 达到有意义的精度改善时，才进入目标环境推理效率
+评价：
 
-- joint R2 improves by at least 0.01 absolute;
-- RMSE improves by at least 1%;
-- macro-ID metrics also improve rather than shifting gain to long records.
+- joint R2 绝对提高至少 0.01；
+- RMSE 相对降低至少 1%；
+- macro-ID 指标也改善，排除收益只集中于长记录的情况。
 
-If the gate passes, benchmark batch size 1 and an operational batch with warmup,
-p50/p95 latency, throughput, model load time, model size, memory, and explicit
-thread count. The final deployment decision remains separate from this global
-baseline experiment.
+通过门槛后，测试 batch size 1 和实际业务 batch，包含 warmup、p50/p95
+latency、throughput、模型加载时间、模型体积、内存和显式线程数。是否最终部署
+仍与本轮 global baseline 实验分开决策。
 
-## Stop condition
+## 停止条件
 
-After all four cells are compared, stop global training expansion. A later
-regional adapter is considered only from the resulting best global baseline
-and requires a separate decision.
+四格对比完成后停止扩展 global 训练。是否进一步训练 regional adapter，应只以
+本轮得到的最佳 global baseline 为起点，并另行决策。

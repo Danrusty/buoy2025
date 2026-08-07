@@ -26,8 +26,8 @@ def regression_metrics(
         raise ValueError(f"预期双输出数组 (N, 2)，实际为 {true64.shape}")
 
     if len(true64) < 2:
-        # sklearn 1.8 returns a scalar NaN here even with
-        # multioutput="raw_values"; preserve the two-output contract.
+        # sklearn 1.8 即使指定 multioutput="raw_values"，此处仍返回标量 NaN；
+        # 显式保留双输出指标契约。
         r2_values = np.full(2, np.nan, dtype=np.float64)
     else:
         r2_values = np.asarray(

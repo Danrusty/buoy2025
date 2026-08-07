@@ -1,4 +1,4 @@
-"""Tests for the shared global factorial experiment protocol."""
+"""全局纬度信息 × 模型类型析因实验共用协议测试。"""
 
 import json
 import pickle

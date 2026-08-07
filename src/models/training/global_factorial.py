@@ -1,8 +1,7 @@
-"""Shared data and evaluation protocol for the global factorial experiments.
+"""全局纬度信息 × 模型类型析因实验的共用数据与评价协议。
 
-All three experiment branches use this module to inherit the frozen global
-``original_ID`` split, materialize one row-identical cache, and apply identical
-metrics to MLP and XGBoost predictions.
+三个实验分支均通过本模块继承冻结 global 模型的 ``original_ID`` 切分，
+生成逐行完全一致的共享缓存，并对 MLP 和 XGBoost 预测使用同一套指标定义。
 """
 
 from __future__ import annotations
@@ -97,7 +96,7 @@ def _json_dump(path: Path, payload: dict[str, Any]) -> None:
 
 
 def sha256_file(path: Path, block_size: int = 8 * 1024 * 1024) -> str:
-    """Calculate SHA256 without loading a whole artifact into memory."""
+    """以分块方式计算文件 SHA256，避免把完整产物载入内存。"""
     digest = hashlib.sha256()
     with path.open("rb") as file:
         for block in iter(lambda: file.read(block_size), b""):
@@ -106,7 +105,7 @@ def sha256_file(path: Path, block_size: int = 8 * 1024 * 1024) -> str:
 
 
 def sin_latitude(latitude_degrees: np.ndarray | Iterable[float]) -> np.ndarray:
-    """Encode latitude as ``sin(deg2rad(latitude))`` in float32."""
+    """将纬度编码为 float32 的 ``sin(deg2rad(latitude))``。"""
     latitude = np.asarray(latitude_degrees, dtype=np.float64)
     if not np.all(np.isfinite(latitude)):
         raise ValueError("latitude contains non-finite values")
@@ -132,7 +131,7 @@ def _canonical_original_id(frame: Any, trajectory_index: int) -> str:
 
 
 def _extract_valid_arrays(frame: Any) -> dict[str, np.ndarray]:
-    """Apply the exact frozen-core6 row filter and derive latitude input."""
+    """严格复用冻结 core6 行筛选，并派生纬度输入。"""
     frozen_required = list(
         dict.fromkeys(
             CORE6_FEATURES + OBSERVATION_COLUMNS + CURRENT_COLUMNS
@@ -143,8 +142,8 @@ def _extract_valid_arrays(frame: Any) -> dict[str, np.ndarray]:
     if missing:
         raise ValueError(f"trajectory is missing columns: {sorted(missing)}")
 
-    # Equivalent to frozen loader's frame[frozen_required].dropna().
-    # Latitude is validated only after this mask and never changes membership.
+    # 与冻结 loader 的 frame[frozen_required].dropna() 完全等价。
+    # 纬度只在该 mask 之后校验，绝不改变任一集合的样本成员关系。
     valid = frame[frozen_required].notna().all(axis=1)
     if not bool(valid.any()):
         return {
@@ -191,7 +190,7 @@ def _extract_valid_arrays(frame: Any) -> dict[str, np.ndarray]:
 def validate_frozen_split_manifest(
     manifest: dict[str, Any],
 ) -> dict[str, dict[str, int | str]]:
-    """Validate split disjointness and return a strict ID lookup."""
+    """验证三集合 ID 两两不交，并返回严格的 ID 分配索引。"""
     if manifest.get("group_column") != GROUP_COLUMN:
         raise ValueError(
             f"frozen group column is {manifest.get('group_column')!r}, "
@@ -336,7 +335,7 @@ def prepare_cache(
     artifact_manifest_path: Path = DATA_MANIFEST_PATH,
     expected_source_sha256: str | None = SOURCE_SHA256,
 ) -> dict[str, Any]:
-    """Materialize a row-identical cache from the frozen global dataset."""
+    """从冻结 global 数据集生成逐行一致的共用缓存。"""
     source_path = source_path.resolve()
     split_manifest_path = split_manifest_path.resolve()
     cache_dir = cache_dir.resolve()
@@ -510,7 +509,7 @@ def validate_cache(
     artifact_manifest_path: Path = DATA_MANIFEST_PATH,
     verify_checksums: bool = False,
 ) -> dict[str, Any]:
-    """Validate cache shapes, dtypes, lineage, and optional SHA256 values."""
+    """校验缓存形状、类型、血缘，并可选重算 SHA256。"""
     artifact_manifest_path = artifact_manifest_path.resolve()
     payload = json.loads(
         artifact_manifest_path.read_text(encoding="utf-8")
@@ -573,7 +572,7 @@ def load_cached_split(
     split_name: str,
     artifact_manifest_path: Path = DATA_MANIFEST_PATH,
 ) -> dict[str, np.ndarray]:
-    """Load one frozen split as read-only NumPy memmaps."""
+    """把一个冻结集合加载为只读 NumPy memmap。"""
     if split_name not in SPLIT_NAMES:
         raise ValueError(f"unknown split: {split_name}")
     payload = validate_cache(
@@ -590,7 +589,7 @@ def assemble_features(
     core6: np.ndarray,
     latitude_feature: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Return core6 or append ``sin_latitude`` as the seventh column."""
+    """返回 core6，或把 ``sin_latitude`` 追加为第 7 列。"""
     core = np.asarray(core6)
     if core.ndim != 2 or core.shape[1] != len(CORE6_FEATURES):
         raise ValueError(f"expected core6 shape (N, 6), got {core.shape}")
@@ -656,7 +655,7 @@ def macro_original_id_metrics(
     y_pred: np.ndarray,
     group_index: np.ndarray,
 ) -> dict[str, float | int]:
-    """Compute metrics giving every physical drifter equal weight."""
+    """计算每个物理浮标等权的宏平均指标。"""
     components = _per_group_components(y_true, y_pred, group_index)
     counts = components["counts"]
     sse = components["sse"]
@@ -692,7 +691,7 @@ def original_id_win_rate(
     group_index: np.ndarray,
     tolerance: float = 1e-12,
 ) -> dict[str, float | int]:
-    """Compare per-ID joint RMSE against the frozen reference."""
+    """按 original_ID 的联合 RMSE 与冻结基准比较。"""
     candidate = _per_group_components(y_true, candidate_pred, group_index)
     reference = _per_group_components(y_true, reference_pred, group_index)
     counts = candidate["counts"]
@@ -723,7 +722,7 @@ def latitude_band_metrics(
     latitude: np.ndarray,
     edges: np.ndarray = LATITUDE_BAND_EDGES,
 ) -> list[dict[str, Any]]:
-    """Report row-weighted metrics in fixed non-overlapping latitude bands."""
+    """报告固定且互不重叠纬度带内的逐行加权指标。"""
     true = np.asarray(y_true)
     pred = np.asarray(y_pred)
     lat = np.asarray(latitude, dtype=np.float64)
@@ -768,7 +767,7 @@ def evaluate_predictions(
     latitude: np.ndarray,
     reference_pred: np.ndarray | None = None,
 ) -> dict[str, Any]:
-    """Apply the complete shared factorial evaluation protocol."""
+    """执行完整且共用的析因实验评价协议。"""
     error = np.asarray(y_pred, dtype=np.float64) - np.asarray(
         y_true,
         dtype=np.float64,
@@ -805,7 +804,7 @@ def predict_onnx_batched(
     features: np.ndarray,
     batch_size: int = 262_144,
 ) -> np.ndarray:
-    """Run raw physical inputs through ONNX in bounded CPU batches."""
+    """以有界 CPU batch 将原始物理量输入 ONNX。"""
     import onnxruntime as ort
 
     session = ort.InferenceSession(
@@ -834,7 +833,7 @@ def replay_frozen_global(
     output_path: Path = FROZEN_REPLAY_PATH,
     prediction_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Replay frozen global ONNX on the shared test rows and verify metrics."""
+    """在共用测试行回放冻结 global ONNX，并核验历史指标。"""
     split = load_cached_split("test")
     predictions = predict_onnx_batched(
         FROZEN_ONNX_PATH,
