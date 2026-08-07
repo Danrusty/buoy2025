@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "locked_at_utc": "2026-08-07T12:53:34.324073+00:00",
+  "run_name": "global_xgb_core6_v1",
+  "training_code_git_commit": "5659348dfc56ac926eb2fdc14038b6615ea16158",
+  "test_features_or_targets_loaded_before_lock": false,
+  "selection_metric": "validation joint RMSE",
+  "selected_candidate": "lossguide128_eta003",
+  "selected_validation_metrics": {
+    "r2_u": 0.13076986836247262,
+    "r2_v": 0.12553975709470555,
+    "r2_joint": 0.12815481272858908,
+    "rmse": 0.195013813893082,
+    "mae": 0.14210116091989897
+  },
+  "validation_search": {
+    "path": "trained_models/global_xgb_core6_v1/validation_search.json",
+    "sha256": "e32c47f7472dd9570380eb9596347f6bc8ab54ae0af94c6978c0966ca58322e4"
+  },
+  "models": [
+    {
+      "target": "residual_u",
+      "path": "trained_models/global_xgb_core6_v1/model_residual_u.ubj",
+      "sha256": "6254c54780e29b7f36995204efe8120c2509b23c5accd326b1fc252c3cd3cd7a",
+      "boosted_rounds": 237
+    },
+    {
+      "target": "residual_v",
+      "path": "trained_models/global_xgb_core6_v1/model_residual_v.ubj",
+      "sha256": "3581634f32c9a8014ea3b4dcb8945a41c4aeb8b6962b6d380c1150451e9a5ac4",
+      "boosted_rounds": 228
+    }
+  ]
+}
