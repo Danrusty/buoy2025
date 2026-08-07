@@ -1,6 +1,6 @@
 # 论文诊断实验分支与提交来源
 
-更新时间：2026-08-07
+更新时间：2026-08-08
 
 ## 1. 记录目的
 
@@ -11,15 +11,16 @@
 
 ## 2. 工程基线
 
-- 稳定主线：`master@f2a01709c8cac05f580341df70b477a633614aae`
+- 冻结部署模型谱系：`master@f2a01709c8cac05f580341df70b477a633614aae`
+- 当前 `master`：在冻结部署谱系上增加论文 provenance 与只读评价，不改变模型
 - 冻结归档 tag：`archive/wdf-core6-circular-mwd-v2`
 - 当前工程部署主模型：`wdf_core6_circular_mwd_v2`
 - 部署状态：Python、C++、Fortran 和 Windows 数值验证通过
 - 研究状态：工程接口继续冻结；后续模型只作为论文诊断证据，未替换 Windows
   Fortran 溢油模拟中的 global core6
 
-`master` 只维护稳定工程基线、部署模型和论文 provenance。互斥训练代码、失败
-release 和实验模型不整体合并回主线。
+`master` 只维护稳定工程基线、部署模型、论文 provenance 和不改模型的共用评价。
+互斥训练代码、失败 release 和实验模型不整体合并回主线。
 
 ## 3. CMS 实验谱系
 
@@ -152,7 +153,47 @@ joint R² 为 `-0.000713`，虽然 validation 提高，但没有形成独立 tes
 - `paper/global-xgb-lat7-v1:results/global_factorial_v1/README.md`
 - `paper/global-xgb-lat7-v1:results/global_factorial_v1/comparison.json`
 
-## 5. 可比性边界
+## 5. Held-out drifter 多时长位移误差代理
+
+分析代码固定于 `master@ce52512`，没有训练或修改模型。它严格重放 frozen
+global held-out test 的 366 个 `original_ID`、646 个源片段和 2,425,415 行，
+在非 1 h 间隔处切成 903 个连续 episode。每个 episode 使用非重叠
+6/12/24/48/72 h 窗口，累计
+`(predicted residual - observed residual) × 3600 s` 后取二维端点距离。
+主统计量先在每个 ID 内取窗口中位数，再对 ID 等权；95% 区间以 ID 为单位做
+10,000 次配对 bootstrap。
+
+冻结 core6 MLP 相对 Linear 的结果为：
+
+| 时长 | Linear (km) | core6 MLP (km) | 改善率 | 配对 95% CI |
+|---:|---:|---:|---:|---:|
+| 6 h | 4.367 | 4.355 | 0.278% | [-0.064%, 0.618%] |
+| 12 h | 7.978 | 7.963 | 0.184% | [-0.227%, 0.595%] |
+| 24 h | 14.771 | 14.723 | 0.328% | [-0.174%, 0.827%] |
+| 48 h | 27.871 | 27.729 | 0.509% | [0.016%, 0.992%] |
+| 72 h | 39.964 | 39.653 | 0.779% | [0.269%, 1.293%] |
+
+因此逐时 RMSE 的 `0.291%` 改善没有被积分迅速淹没；中位端点代理在
+48–72 h 仍存在，并随时长小幅增强。但绝对收益只有 48 h 的 `0.142 km` 和
+72 h 的 `0.311 km`，长时 P90 改善区间也跨零，不能据此宣称真实溢油轨迹已有
+明显改善。
+
+辅助的 MLP lat7 使用相同 test rows，在 48/72 h 相对 Linear 分别改善
+`1.210%` 和 `1.214%`，对应 `0.337/0.485 km`，配对区间高于零；长时 P90
+仍不稳定。该结果强化了“存在小幅、具有时间相关性的信号”，但仍未形成数量级
+突破。
+
+主要证据位置：
+
+- `results/heldout_trajectory_proxy_v1/README.md`
+- `results/heldout_trajectory_proxy_v1/trajectory_proxy.json`
+- `results/heldout_trajectory_proxy_v1/trajectory_proxy_summary.csv`
+
+这只是沿观测位置和真实逐时 forcing 的 open-loop displacement-error proxy，
+不是递归更新位置的 Fortran 轨迹；它不包含空间偏离后的 forcing、扩散、岸线和
+溢油动力学。
+
+## 6. 可比性边界
 
 只有共享 `original_ID` 切分、测试样本、逐行顺序、target 和评价脚本的结果
 才能作严格数值排名。
@@ -168,7 +209,7 @@ joint R² 为 `-0.000713`，虽然 validation 提高，但没有形成独立 tes
 - 逐行指标会让长记录获得更高权重；论文同时报告 equal-ID macro 指标和逐 ID
   胜/负比例，避免把少数长轨迹的微小收益解释为普遍改善。
 
-## 6. 分支与归档规则
+## 7. 分支与归档规则
 
 截至 2026-08-07，以下远端分支保留用于论文写作：
 
@@ -191,7 +232,7 @@ tags 验证后删除本地分支。它们的完整历史和产物分别由
 5. 若需要把通用基础设施带回主线，从干净 master 建立 integration branch，
    只选择基础设施与文档，不携带失败 release 或互斥模型产物。
 
-## 7. 论文叙事边界
+## 8. 论文叙事边界
 
 core6 circular-MWD v2 仍是 Windows Fortran 案例中的部署主模型。XGBoost、
 位置特征、CMS 网络重设计和 adapter 用于回答：

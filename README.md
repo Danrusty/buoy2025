@@ -5,6 +5,10 @@ C++/Fortran/Windows 溢油模型调用的 ONNX 推理接口。当前工程主线
 global circular-MWD core6 模型；后续 CMS、adapter、空间坐标和 XGBoost
 实验用于论文中的机制诊断，没有替换 active deployment。
 
+`master` 另包含 held-out drifter 的 6–72 h 位移误差代理：沿严格连续小时片段
+积分逐时速度误差，用于检验 MLP 的小幅点级收益是否能保留到漂移应用时标；该
+分析不训练模型，也不改变部署接口。
+
 分支概况：
 
 - `master`：稳定工程和已验证的 global core6 部署；
@@ -16,3 +20,5 @@ global circular-MWD core6 模型；后续 CMS、adapter、空间坐标和 XGBoos
 
 论文实验的准确提交、关键数值、产物位置和可比性边界见
 [PAPER_EXPERIMENT_BRANCH_PROVENANCE_20260807.md](PAPER_EXPERIMENT_BRANCH_PROVENANCE_20260807.md)。
+最新轨迹代理结论见
+[results/heldout_trajectory_proxy_v1/README.md](results/heldout_trajectory_proxy_v1/README.md)。
