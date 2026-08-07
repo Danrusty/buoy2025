@@ -1,0 +1,28 @@
+{
+  "study": "wdf_cms_core6_network_redesign_v1",
+  "test_status": "sealed_not_evaluated",
+  "cv_ranking": [
+    "plain_64_32",
+    "plain_32_32",
+    "plain_16_16",
+    "layernorm_64_32",
+    "legacy_core6_433k",
+    "layernorm_32_32",
+    "linear_skip_64_32",
+    "residual_layernorm_64",
+    "linear_skip_32_32",
+    "linear_core6"
+  ],
+  "fixed_validation_ranking": [
+    "plain_64_32",
+    "plain_32_32"
+  ],
+  "selected_architecture": "plain_64_32",
+  "selected_validation_metrics": {
+    "r2_u": 0.0606826647012243,
+    "r2_v": 0.05399332682992042,
+    "r2_joint": 0.05733799576557236,
+    "rmse": 0.3508237074186378,
+    "mae": 0.27125386630453246
+  }
+}
