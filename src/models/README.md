@@ -9,6 +9,8 @@
 - `training/global_longitude.py`：在冻结行顺序上追加经度循环编码缓存；
 - `training/run_global_mlp_lat7.py`、`training/run_global_mlp_lat9.py`：
   两个空间信息 MLP 实验入口；
+- `training/summarize_global_mlp_spatial.py`：统一比较 core6、lat7、lat9
+  及既有 XGBoost 结果；
 - `deployment/`：C++/Fortran wrapper 和 Windows 验证脚本；
 - `legacy/`：已归档的早期 MLP/RNN 探索脚本。
 
