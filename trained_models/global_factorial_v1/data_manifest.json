@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "experiment": "global_factorial_v1",
+  "created_at_utc": "2026-08-07T12:29:49.547623+00:00",
+  "lineage": {
+    "frozen_global_branch": "master",
+    "frozen_global_commit": "f2a0170",
+    "frozen_training_run": "trained_models/ablation_circular_mwd_v2_final/core_6",
+    "row_filter": "drop rows missing any frozen core6 feature, ve, vn, cfsv2_u, or cfsv2_v; latitude is validated but does not change row membership"
+  },
+  "source": {
+    "path": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
+    "size_bytes": 2427317095,
+    "sha256": "22ab0a32ff9472a6f8b8f57af5fd96b93cdeb76d45b4ef6b0a798fa1befb937e"
+  },
+  "frozen_split_manifest": {
+    "path": "trained_models/ablation_circular_mwd_v2_final/core_6/split_manifest.json",
+    "sha256": "29b2f1c599290fd40c17c05180b1eacc3500a8c07fc83bb4889fe6f6882ff23d",
+    "random_seed": 42
+  },
+  "features": {
+    "core6": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ],
+    "latitude_feature": "sin_latitude",
+    "latitude_formula": "sin(deg2rad(latitude))",
+    "lat7_order": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos",
+      "sin_latitude"
+    ]
+  },
+  "targets": {
+    "columns": [
+      "residual_u",
+      "residual_v"
+    ],
+    "residual_u": "ve - cfsv2_u",
+    "residual_v": "vn - cfsv2_v"
+  },
+  "split_counts": {
+    "train": {
+      "n_original_ids": 1707,
+      "n_segments": 2900,
+      "n_samples": 11694073
+    },
+    "val": {
+      "n_original_ids": 366,
+      "n_segments": 595,
+      "n_samples": 2614863
+    },
+    "test": {
+      "n_original_ids": 366,
+      "n_segments": 646,
+      "n_samples": 2425415
+    }
+  },
+  "cache_files": {
+    "train": {
+      "core6": {
+        "path": "processed_data/global_factorial_v1/X_core6_train.npy",
+        "shape": [
+          11694073,
+          6
+        ],
+        "dtype": "float32",
+        "size_bytes": 280657880,
+        "sha256": "c9591a32e16daa2d39eb7dff3edce5c662cbda0351a5afedc213452a0c06a0e4"
+      },
+      "sin_latitude": {
+        "path": "processed_data/global_factorial_v1/sin_latitude_train.npy",
+        "shape": [
+          11694073
+        ],
+        "dtype": "float32",
+        "size_bytes": 46776420,
+        "sha256": "49d9e0ab539e99096b24b8a590f7121b9b51c6705e4ec6c689400b41d43fad61"
+      },
+      "latitude": {
+        "path": "processed_data/global_factorial_v1/latitude_train.npy",
+        "shape": [
+          11694073
+        ],
+        "dtype": "float32",
+        "size_bytes": 46776420,
+        "sha256": "14112ac6475211f7fc30edb3eb7b7ca59b55b9e113828e1bc9baa8d9087fe379"
+      },
+      "target": {
+        "path": "processed_data/global_factorial_v1/y_train.npy",
+        "shape": [
+          11694073,
+          2
+        ],
+        "dtype": "float32",
+        "size_bytes": 93552712,
+        "sha256": "c1bf25d70ccba643cc9b7f5713148352632a4e4be50ce0ff9213d50582f5c6e4"
+      },
+      "group_index": {
+        "path": "processed_data/global_factorial_v1/group_index_train.npy",
+        "shape": [
+          11694073
+        ],
+        "dtype": "int32",
+        "size_bytes": 46776420,
+        "sha256": "bd1dff2273936fe469d130e72d42d496c8a682eff8bb75103cae79fcec396181"
+      }
+    },
+    "val": {
+      "core6": {
+        "path": "processed_data/global_factorial_v1/X_core6_val.npy",
+        "shape": [
+          2614863,
+          6
+        ],
+        "dtype": "float32",
+        "size_bytes": 62756840,
+        "sha256": "2c6e91f7425bfcbb7399f9dd394313ca51def2aec7007a378b337d8dd06b80c6"
+      },
+      "sin_latitude": {
+        "path": "processed_data/global_factorial_v1/sin_latitude_val.npy",
+        "shape": [
+          2614863
+        ],
+        "dtype": "float32",
+        "size_bytes": 10459580,
+        "sha256": "9a01e7e27dfb182d93e18246781c864f0952c515a1af68c2de39549a2138b20e"
+      },
+      "latitude": {
+        "path": "processed_data/global_factorial_v1/latitude_val.npy",
+        "shape": [
+          2614863
+        ],
+        "dtype": "float32",
+        "size_bytes": 10459580,
+        "sha256": "f1fc2cb29b1b574ceef0316c9b0b1041f4b67f16767238b30707c1bc932a0f6c"
+      },
+      "target": {
+        "path": "processed_data/global_factorial_v1/y_val.npy",
+        "shape": [
+          2614863,
+          2
+        ],
+        "dtype": "float32",
+        "size_bytes": 20919032,
+        "sha256": "e59dc9d66a5989b6153498e4a5f06aef01269d7d9167651300f61f7dd762b047"
+      },
+      "group_index": {
+        "path": "processed_data/global_factorial_v1/group_index_val.npy",
+        "shape": [
+          2614863
+        ],
+        "dtype": "int32",
+        "size_bytes": 10459580,
+        "sha256": "7da2c7f34af9c550773a81bf0e682d2950f6e45683bc81e8ca4c2a39990b220f"
+      }
+    },
+    "test": {
+      "core6": {
+        "path": "processed_data/global_factorial_v1/X_core6_test.npy",
+        "shape": [
+          2425415,
+          6
+        ],
+        "dtype": "float32",
+        "size_bytes": 58210088,
+        "sha256": "fe2431c053c42ed0b80feb0f031b5d0287628d4c6c7610f1701d049c00fdba3c"
+      },
+      "sin_latitude": {
+        "path": "processed_data/global_factorial_v1/sin_latitude_test.npy",
+        "shape": [
+          2425415
+        ],
+        "dtype": "float32",
+        "size_bytes": 9701788,
+        "sha256": "34a0707df772e4feadb5737a76f68ee164d12ce9696be0d609753945b0b107e4"
+      },
+      "latitude": {
+        "path": "processed_data/global_factorial_v1/latitude_test.npy",
+        "shape": [
+          2425415
+        ],
+        "dtype": "float32",
+        "size_bytes": 9701788,
+        "sha256": "147de50b84e67cf5ca7c2a37bbb4521d46ee14cfbea4fa61a688bde08720c4a4"
+      },
+      "target": {
+        "path": "processed_data/global_factorial_v1/y_test.npy",
+        "shape": [
+          2425415,
+          2
+        ],
+        "dtype": "float32",
+        "size_bytes": 19403448,
+        "sha256": "af701ff7b8b3212a66ecb944c9ab62628cbf7916f70a42377663be7b7852db98"
+      },
+      "group_index": {
+        "path": "processed_data/global_factorial_v1/group_index_test.npy",
+        "shape": [
+          2425415
+        ],
+        "dtype": "int32",
+        "size_bytes": 9701788,
+        "sha256": "01285cadf7d20943e76d9355b76efcb589923b79601c42f6db106aaf15073b94"
+      }
+    }
+  }
+}
