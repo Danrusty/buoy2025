@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-08-07T05:25:08.827474+00:00",
+  "study": "wdf_cms_core6_network_redesign_v1",
+  "evaluation_code_git_commit": "5f752d4b486a354bf1585662f31fff59f10a0dd8",
+  "test_status": "evaluated_once_locked",
+  "selection_lock_sha256": "91b8f8d45015ee075e5550ea1e85c0425164a475a4823322c0383a3f61051c0d",
+  "selected_architecture": "plain_64_32",
+  "selected_parameter_count": 2594,
+  "test_original_ids": [
+    "300234063946920",
+    "300234066613930",
+    "300234066911830",
+    "300534060522280"
+  ],
+  "subsets": {
+    "CMS_overall": {
+      "n_samples": 2927,
+      "n_original_ids": 4,
+      "selected_network": {
+        "status": "ok",
+        "r2_u": 0.07517540277329038,
+        "r2_v": 0.020769874575164105,
+        "r2_joint": 0.04797263867422724,
+        "rmse": 0.3689087988215207,
+        "mae": 0.2787313710980297,
+        "bias_u": 0.05493475895561777,
+        "bias_v": -0.07102430014312738
+      },
+      "frozen_global": {
+        "status": "ok",
+        "r2_u": 0.11986026934167204,
+        "r2_v": 0.14978840060863996,
+        "r2_joint": 0.134824334975156,
+        "rmse": 0.3523829286722916,
+        "mae": 0.263393138127283,
+        "bias_u": -0.005401366019149407,
+        "bias_v": -0.07041129747912285
+      }
+    },
+    "Bohai_Yellow_Sea": {
+      "n_samples": 0,
+      "n_original_ids": 0,
+      "selected_network": {
+        "status": "no_samples",
+        "r2_u": null,
+        "r2_v": null,
+        "r2_joint": null,
+        "rmse": null,
+        "mae": null,
+        "bias_u": null,
+        "bias_v": null
+      },
+      "frozen_global": {
+        "status": "no_samples",
+        "r2_u": null,
+        "r2_v": null,
+        "r2_joint": null,
+        "rmse": null,
+        "mae": null,
+        "bias_u": null,
+        "bias_v": null
+      }
+    },
+    "East_China_Sea": {
+      "n_samples": 1869,
+      "n_original_ids": 4,
+      "selected_network": {
+        "status": "ok",
+        "r2_u": 0.10309772848920395,
+        "r2_v": -0.06491956435910451,
+        "r2_joint": 0.019089082065049723,
+        "rmse": 0.35385349652269127,
+        "mae": 0.2663481891713366,
+        "bias_u": -0.02027464553410474,
+        "bias_v": -0.1264424257453197
+      },
+      "frozen_global": {
+        "status": "ok",
+        "r2_u": 0.061862236670524484,
+        "r2_v": 0.09661560401759905,
+        "r2_joint": 0.07923892034406177,
+        "rmse": 0.3429617648592162,
+        "mae": 0.2564051355664467,
+        "bias_u": -0.07653451379402165,
+        "bias_v": -0.1106159728411486
+      }
+    },
+    "Northern_South_China_Sea": {
+      "n_samples": 1058,
+      "n_original_ids": 2,
+      "selected_network": {
+        "status": "ok",
+        "r2_u": -0.16430277755089095,
+        "r2_v": 0.07124090500778824,
+        "r2_joint": -0.04653093627155136,
+        "rmse": 0.39410169469234063,
+        "mae": 0.30060676525775504,
+        "bias_u": 0.18779522870163987,
+        "bias_v": 0.026874071076624404
+      },
+      "frozen_global": {
+        "status": "ok",
+        "r2_u": 0.006837290386083605,
+        "r2_v": 0.15548854129925138,
+        "r2_joint": 0.0811629158426675,
+        "rmse": 0.3684375916071342,
+        "mae": 0.2757377286624465,
+        "bias_u": 0.12025823056992074,
+        "bias_v": 0.0006118955753441827
+      }
+    }
+  },
+  "references": {
+    "original_cms_mlp": {
+      "r2_u": -0.05629037607771381,
+      "r2_v": -0.07626096254252612,
+      "r2_joint": -0.06627566931011997,
+      "rmse": 0.39074473845004226,
+      "mae": 0.2991081491888142
+    },
+    "regional_linear": {
+      "r2_u": 0.02430153726708406,
+      "r2_v": -0.0015580334693598985,
+      "r2_joint": 0.011371751898862081,
+      "rmse": 0.37618766455675207,
+      "mae": 0.28095429658435295
+    },
+    "frozen_global_same_rows": {
+      "status": "ok",
+      "r2_u": 0.11986026934167204,
+      "r2_v": 0.14978840060863996,
+      "r2_joint": 0.134824334975156,
+      "rmse": 0.3523829286722916,
+      "mae": 0.263393138127283,
+      "bias_u": -0.005401366019149407,
+      "bias_v": -0.07041129747912285
+    }
+  },
+  "comparisons": {
+    "selected_minus_original_cms_joint_r2": 0.11424830798434721,
+    "selected_minus_original_cms_rmse": -0.02183593962852154,
+    "selected_minus_linear_joint_r2": 0.03660088677536516,
+    "selected_minus_linear_rmse": -0.0072788657352313435,
+    "selected_minus_frozen_global_joint_r2": -0.08685169630092876,
+    "selected_minus_frozen_global_rmse": 0.016525870149229127
+  },
+  "recommendation": "do_not_replace_frozen_global"
+}
