@@ -6,6 +6,7 @@
 - `training/`：global baseline、MLP 训练、消融、ONNX 导出，以及纬度信息 ×
   模型类型析因实验的共用协议；
 - `training/run_global_xgb.py`：core6/lat7 共用的 XGBoost 受控实验入口；
+- `training/summarize_global_factorial.py`：跨三个实验分支生成统一四格比较；
 - `deployment/`：C++/Fortran wrapper 和 Windows 验证脚本；
 - `legacy/`：已归档的早期 MLP/RNN 探索脚本。
 
