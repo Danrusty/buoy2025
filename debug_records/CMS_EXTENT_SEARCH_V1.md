@@ -14,7 +14,11 @@ deployment.
 - Latitude: 15–45 N, inclusive.
 - West longitude: 105 E, inclusive.
 - First east boundary: 140 E.
-- If the first range is insufficient, expand eastward by 10 degrees to 150 E.
+- If a range is insufficient, expand eastward by 10 degrees through
+  150/160/170/180 E and select the first passing boundary.
+- 180 E is the fixed maximum because the source uses the
+  `-180 to 180` longitude convention; this v1 search does not cross the
+  dateline.
 - Only in-rectangle rows count.
 - Entering the region does not admit an ID's out-of-region rows.
 - An `original_ID` must contribute at least 24 in-region hourly rows summed

@@ -54,6 +54,7 @@ class RegionalExtentSearchTest(unittest.TestCase):
         result = summarize_extent_search(
             trajectories,
             manifest,
+            east_longitudes=(140.0, 150.0),
             min_regional_points=2,
             minimum_total_ids=3,
             minimum_lineage_ids={"train": 1, "val": 1, "test": 1},

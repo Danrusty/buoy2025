@@ -25,7 +25,13 @@ from data_loader import PROJECT_ROOT
 SEARCH_VERSION = "wdf_cms_extent_search_v1"
 LATITUDE_RANGE = (15.0, 45.0)
 WEST_LONGITUDE = 105.0
-EAST_LONGITUDE_CANDIDATES = (140.0, 150.0)
+EAST_LONGITUDE_CANDIDATES = (
+    140.0,
+    150.0,
+    160.0,
+    170.0,
+    180.0,
+)
 MINIMUM_TOTAL_IDS = 100
 MINIMUM_LINEAGE_IDS = {
     "train": 75,
