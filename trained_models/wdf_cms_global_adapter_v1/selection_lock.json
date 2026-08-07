@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_global_adapter_v1",
+  "created_at_utc": "2026-08-07T07:32:05.184929+00:00",
+  "selection_code_git_commit": "b207503ba08478c38727c3c10177edc5b2185372",
+  "base_contract": {
+    "path": "deployment/releases/wdf_core6_circular_mwd_v2/wdf_drifter.onnx",
+    "sha256": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
+    "input": {
+      "name": "input",
+      "shape": [
+        "batch_size",
+        6
+      ],
+      "dtype": "tensor(float)"
+    },
+    "output": {
+      "name": "output",
+      "shape": [
+        "batch_size",
+        2
+      ],
+      "dtype": "tensor(float)"
+    }
+  },
+  "data_source": {
+    "path": "processed_data/trajectories_cms_circular_mwd_v2.pkl",
+    "sha256": "9b52855d233076fc39dfdc4079805d37d42208ad6c3590bd01f8db4f23ab3fe0"
+  },
+  "global_split_manifest": {
+    "path": "trained_models/ablation_circular_mwd_v2_final/core_6/split_manifest.json",
+    "sha256": "29b2f1c599290fd40c17c05180b1eacc3500a8c07fc83bb4889fe6f6882ff23d"
+  },
+  "protocol": {
+    "path": "trained_models/wdf_cms_global_adapter_v1/selection_protocol.json",
+    "sha256": "790f558199f8442ceb962c7a4d9e45481ca424da98a91be744f342e8f7546286"
+  },
+  "lineage_manifest": {
+    "path": "trained_models/wdf_cms_global_adapter_v1/global_lineage_split_manifest.json",
+    "sha256": "684479e9c11d21279f85bbb5a6c64dab7301cbdf27b4b48c804de41669f18f5d"
+  },
+  "development_cv": {
+    "path": "trained_models/wdf_cms_global_adapter_v1/development_cv.json",
+    "sha256": "aaac51f522d4975c55866391e9912b41c5ba38139c46b37b53d951366f85335d"
+  },
+  "gate_evaluation": {
+    "path": "trained_models/wdf_cms_global_adapter_v1/gate_evaluation.json",
+    "sha256": "df2c6fae29dee67f984fa1d0936995d22e4ab515a7e8e8c10a8492a5f0679f73"
+  },
+  "selected_adapter_name": "G0_global_only",
+  "selected_lambda": null,
+  "selection_gate_passed": false,
+  "selection_gate": {
+    "passed": false,
+    "checks": {
+      "selected_adapter_is_nonzero": false,
+      "development_macro_id_rmse_improves_at_least_2_percent": false,
+      "development_id_win_rate_at_least_60_percent": false,
+      "outer_selected_family_frequency_at_least_60_percent": true,
+      "development_ecs_not_degraded_over_2_percent": true,
+      "development_nscs_not_degraded_over_2_percent": true,
+      "development_correction_p99_not_larger_than_global_p99": true,
+      "gate_point_rmse_improves": false,
+      "gate_macro_id_rmse_improves": false,
+      "no_gate_id_degrades_over_5_percent": true
+    },
+    "selected_family_outer_frequency": 1.0,
+    "subregion_checks": {
+      "ECS": {
+        "status": "ok",
+        "relative_macro_id_rmse_change": 0.0,
+        "passed": true
+      },
+      "NSCS": {
+        "status": "ok",
+        "relative_macro_id_rmse_change": 0.0,
+        "passed": true
+      }
+    }
+  },
+  "adapter_for_test": null,
+  "confirmation_original_ids": [
+    "300234063948940",
+    "300234066911830"
+  ],
+  "confirmation_original_ids_sha256": "520b27cc8823706a08fd14a428e70c6762bf58be1cee24e6f5cf7f3da955fa74",
+  "confirmation_disclosure": "Base-only aggregate metrics were inspected during lineage audit; no adapter prediction has been evaluated on these IDs.",
+  "test_status": "not_authorized_gate_failed"
+}

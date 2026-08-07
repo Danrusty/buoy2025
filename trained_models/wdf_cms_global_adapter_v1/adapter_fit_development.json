@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_global_adapter_v1",
+  "adapter_spec": {
+    "name": "G0_global_only",
+    "family": "none",
+    "parameter_names": [],
+    "description": "Frozen global ONNX without correction."
+  },
+  "lambda": null,
+  "coefficients": {},
+  "coefficient_vector": [],
+  "basis_rms_scales": [],
+  "training_original_ids": [
+    "300234063946920",
+    "300234063947580",
+    "300234063947770",
+    "300234064704760",
+    "300234066310050",
+    "300234066410130",
+    "300234066410970",
+    "300234066613930",
+    "300234066912840",
+    "300234068760480",
+    "300234068761550",
+    "300234068762460",
+    "300534060350190",
+    "300534060522280",
+    "300534060523030",
+    "300534060523100",
+    "300534060523180",
+    "300534060613550",
+    "300534060615660"
+  ],
+  "n_training_original_ids": 19,
+  "base_onnx_sha256": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
+  "selection_code_git_commit": "b207503ba08478c38727c3c10177edc5b2185372",
+  "fit_population": "19 frozen-global train CMS IDs"
+}

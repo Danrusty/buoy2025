@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_global_adapter_v1",
+  "adapter_name": "G0_global_only",
+  "lambda": null,
+  "comparison": {
+    "n_samples": 4508,
+    "n_original_ids": 2,
+    "base_point_metrics": {
+      "r2_u": -0.060337667968031417,
+      "r2_v": -0.06281860317467713,
+      "r2_joint": -0.061578135571354276,
+      "rmse": 0.3797323869459666,
+      "mae": 0.30250324981171767
+    },
+    "adapted_point_metrics": {
+      "r2_u": -0.060337667968031417,
+      "r2_v": -0.06281860317467713,
+      "r2_joint": -0.061578135571354276,
+      "rmse": 0.3797323869459666,
+      "mae": 0.30250324981171767
+    },
+    "base_bias": [
+      -0.004320404118577096,
+      0.06725723155090962
+    ],
+    "adapted_bias": [
+      -0.004320404118577096,
+      0.06725723155090962
+    ],
+    "macro_id_base_rmse": 0.3791325241113529,
+    "macro_id_adapted_rmse": 0.3791325241113529,
+    "macro_id_relative_rmse_improvement": 0.0,
+    "id_win_rate": 0.0,
+    "maximum_id_relative_rmse_degradation": 0.0,
+    "mean_id_delta_mse": 0.0,
+    "se_id_delta_mse": 0.0,
+    "per_id": [
+      {
+        "original_ID": "300534060610560",
+        "n_samples": 2339,
+        "base_mse": 0.15250462988060232,
+        "adapted_mse": 0.15250462988060232,
+        "delta_mse": 0.0,
+        "base_rmse": 0.39051841170500823,
+        "adapted_rmse": 0.39051841170500823,
+        "delta_rmse": 0.0,
+        "relative_rmse_change": 0.0
+      },
+      {
+        "original_ID": "300534061286230",
+        "n_samples": 2169,
+        "base_mse": 0.13523758867007962,
+        "adapted_mse": 0.13523758867007962,
+        "delta_mse": 0.0,
+        "base_rmse": 0.3677466365176976,
+        "adapted_rmse": 0.3677466365176976,
+        "delta_rmse": 0.0,
+        "relative_rmse_change": 0.0
+      }
+    ]
+  },
+  "regions": {
+    "CMS": {
+      "status": "ok",
+      "n_samples": 4508,
+      "n_original_ids": 2,
+      "base_point_metrics": {
+        "r2_u": -0.060337667968031417,
+        "r2_v": -0.06281860317467713,
+        "r2_joint": -0.061578135571354276,
+        "rmse": 0.3797323869459666,
+        "mae": 0.30250324981171767
+      },
+      "adapted_point_metrics": {
+        "r2_u": -0.060337667968031417,
+        "r2_v": -0.06281860317467713,
+        "r2_joint": -0.061578135571354276,
+        "rmse": 0.3797323869459666,
+        "mae": 0.30250324981171767
+      },
+      "base_bias": [
+        -0.004320404118577096,
+        0.06725723155090962
+      ],
+      "adapted_bias": [
+        -0.004320404118577096,
+        0.06725723155090962
+      ],
+      "macro_id_base_rmse": 0.3791325241113529,
+      "macro_id_adapted_rmse": 0.3791325241113529,
+      "macro_id_relative_rmse_improvement": 0.0,
+      "id_win_rate": 0.0,
+      "maximum_id_relative_rmse_degradation": 0.0,
+      "mean_id_delta_mse": 0.0,
+      "se_id_delta_mse": 0.0,
+      "per_id": [
+        {
+          "original_ID": "300534060610560",
+          "n_samples": 2339,
+          "base_mse": 0.15250462988060232,
+          "adapted_mse": 0.15250462988060232,
+          "delta_mse": 0.0,
+          "base_rmse": 0.39051841170500823,
+          "adapted_rmse": 0.39051841170500823,
+          "delta_rmse": 0.0,
+          "relative_rmse_change": 0.0
+        },
+        {
+          "original_ID": "300534061286230",
+          "n_samples": 2169,
+          "base_mse": 0.13523758867007962,
+          "adapted_mse": 0.13523758867007962,
+          "delta_mse": 0.0,
+          "base_rmse": 0.3677466365176976,
+          "adapted_rmse": 0.3677466365176976,
+          "delta_rmse": 0.0,
+          "relative_rmse_change": 0.0
+        }
+      ]
+    },
+    "BYS": {
+      "status": "no_samples",
+      "n_samples": 0,
+      "n_original_ids": 0
+    },
+    "ECS": {
+      "status": "ok",
+      "n_samples": 2075,
+      "n_original_ids": 1,
+      "base_point_metrics": {
+        "r2_u": -0.15014518424841095,
+        "r2_v": -0.2405467625521185,
+        "r2_joint": -0.19534597340026472,
+        "rmse": 0.35023159292376677,
+        "mae": 0.28046937495994123
+      },
+      "adapted_point_metrics": {
+        "r2_u": -0.15014518424841095,
+        "r2_v": -0.2405467625521185,
+        "r2_joint": -0.19534597340026472,
+        "rmse": 0.35023159292376677,
+        "mae": 0.28046937495994123
+      },
+      "base_bias": [
+        0.1238450606813299,
+        0.15635461518804597
+      ],
+      "adapted_bias": [
+        0.1238450606813299,
+        0.15635461518804597
+      ],
+      "macro_id_base_rmse": 0.35023159292376677,
+      "macro_id_adapted_rmse": 0.35023159292376677,
+      "macro_id_relative_rmse_improvement": 0.0,
+      "id_win_rate": 0.0,
+      "maximum_id_relative_rmse_degradation": 0.0,
+      "mean_id_delta_mse": 0.0,
+      "se_id_delta_mse": 0.0,
+      "per_id": [
+        {
+          "original_ID": "300534061286230",
+          "n_samples": 2075,
+          "base_mse": 0.12266216868191909,
+          "adapted_mse": 0.12266216868191909,
+          "delta_mse": 0.0,
+          "base_rmse": 0.35023159292376677,
+          "adapted_rmse": 0.35023159292376677,
+          "delta_rmse": 0.0,
+          "relative_rmse_change": 0.0
+        }
+      ]
+    },
+    "NSCS": {
+      "status": "ok",
+      "n_samples": 2433,
+      "n_original_ids": 2,
+      "base_point_metrics": {
+        "r2_u": -0.07916248048672725,
+        "r2_v": 0.039305514110312245,
+        "r2_joint": -0.019928483188207502,
+        "rmse": 0.4031904509094201,
+        "mae": 0.3212949844263646
+      },
+      "adapted_point_metrics": {
+        "r2_u": -0.07916248048672725,
+        "r2_v": 0.039305514110312245,
+        "r2_joint": -0.019928483188207502,
+        "rmse": 0.4031904509094201,
+        "mae": 0.3212949844263646
+      },
+      "base_bias": [
+        -0.11362716098656157,
+        -0.008730056179077291
+      ],
+      "adapted_bias": [
+        -0.11362716098656157,
+        -0.008730056179077291
+      ],
+      "macro_id_base_rmse": 0.5165197293593374,
+      "macro_id_adapted_rmse": 0.5165197293593374,
+      "macro_id_relative_rmse_improvement": 0.0,
+      "id_win_rate": 0.0,
+      "maximum_id_relative_rmse_degradation": 0.0,
+      "mean_id_delta_mse": 0.0,
+      "se_id_delta_mse": 0.0,
+      "per_id": [
+        {
+          "original_ID": "300534060610560",
+          "n_samples": 2339,
+          "base_mse": 0.15250462988060232,
+          "adapted_mse": 0.15250462988060232,
+          "delta_mse": 0.0,
+          "base_rmse": 0.39051841170500823,
+          "adapted_rmse": 0.39051841170500823,
+          "delta_rmse": 0.0,
+          "relative_rmse_change": 0.0
+        },
+        {
+          "original_ID": "300534061286230",
+          "n_samples": 94,
+          "base_mse": 0.41283329585553835,
+          "adapted_mse": 0.41283329585553835,
+          "delta_mse": 0.0,
+          "base_rmse": 0.6425210470136666,
+          "adapted_rmse": 0.6425210470136666,
+          "delta_rmse": 0.0,
+          "relative_rmse_change": 0.0
+        }
+      ]
+    }
+  },
+  "correction_magnitude": {
+    "correction_mean_magnitude": 0.0,
+    "correction_rms_magnitude": 0.0,
+    "correction_p95_magnitude": 0.0,
+    "correction_p99_magnitude": 0.0,
+    "correction_max_magnitude": 0.0,
+    "global_p99_magnitude": 0.20530353965147974,
+    "correction_to_global_p99_ratio": 0.0
+  },
+  "decision": {
+    "passed": false,
+    "checks": {
+      "selected_adapter_is_nonzero": false,
+      "development_macro_id_rmse_improves_at_least_2_percent": false,
+      "development_id_win_rate_at_least_60_percent": false,
+      "outer_selected_family_frequency_at_least_60_percent": true,
+      "development_ecs_not_degraded_over_2_percent": true,
+      "development_nscs_not_degraded_over_2_percent": true,
+      "development_correction_p99_not_larger_than_global_p99": true,
+      "gate_point_rmse_improves": false,
+      "gate_macro_id_rmse_improves": false,
+      "no_gate_id_degrades_over_5_percent": true
+    },
+    "selected_family_outer_frequency": 1.0,
+    "subregion_checks": {
+      "ECS": {
+        "status": "ok",
+        "relative_macro_id_rmse_change": 0.0,
+        "passed": true
+      },
+      "NSCS": {
+        "status": "ok",
+        "relative_macro_id_rmse_change": 0.0,
+        "passed": true
+      }
+    }
+  }
+}

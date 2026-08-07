@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "strategy": "inherit_frozen_global_original_id_lineage",
+  "random_seed": 42,
+  "source_manifest": "trained_models/ablation_circular_mwd_v2_final/core_6/split_manifest.json",
+  "source_manifest_sha256": "29b2f1c599290fd40c17c05180b1eacc3500a8c07fc83bb4889fe6f6882ff23d",
+  "splits": {
+    "development": {
+      "global_source_split": "train",
+      "original_ids": [
+        "300234063946920",
+        "300234063947580",
+        "300234063947770",
+        "300234064704760",
+        "300234066310050",
+        "300234066410130",
+        "300234066410970",
+        "300234066613930",
+        "300234066912840",
+        "300234068760480",
+        "300234068761550",
+        "300234068762460",
+        "300534060350190",
+        "300534060522280",
+        "300534060523030",
+        "300534060523100",
+        "300534060523180",
+        "300534060613550",
+        "300534060615660"
+      ],
+      "n_original_ids": 19,
+      "n_samples": 15823
+    },
+    "gate": {
+      "global_source_split": "val",
+      "original_ids": [
+        "300534060610560",
+        "300534061286230"
+      ],
+      "n_original_ids": 2,
+      "n_samples": 4508
+    },
+    "confirmation": {
+      "global_source_split": "test",
+      "original_ids": [
+        "300234063948940",
+        "300234066911830"
+      ],
+      "n_original_ids": 2,
+      "n_samples": null
+    }
+  },
+  "pairwise_original_id_intersections": {
+    "development_gate": 0,
+    "development_confirmation": 0,
+    "gate_confirmation": 0
+  },
+  "confirmation_data_status": "sealed_not_loaded"
+}

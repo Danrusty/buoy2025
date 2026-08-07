@@ -114,3 +114,32 @@ internally to `global_output`; the linear correction and final `Add` are
 appended while the public `input` and `output` contract remains unchanged.
 
 `onnx_active` is never changed automatically.
+
+## Executed selection result
+
+The pre-registered selection was executed from code commit
+`b207503ba08478c38727c3c10177edc5b2185372`.
+
+- Frozen-global lineage was exactly 19 development / 2 gate / 2 sealed
+  confirmation IDs.
+- Development contained 15,823 rows and gate contained 4,508 rows.
+- All five nested outer folds selected `G0_global_only`.
+- The all-development best-mean candidate was also `G0_global_only`; it was
+  the only candidate within the one-standard-error threshold.
+- Frozen-global nested-development joint R2 was `0.073760` and RMSE was
+  `0.300126 m/s`.
+- The nearest nonzero candidate was `G1_bias2` at lambda `10`, but it
+  increased equal-ID mean MSE by `0.000042001`, reduced macro-ID RMSE by
+  `-0.0328%` (that is, a degradation), and improved only `42.1%` of IDs.
+- Every adapter family's best cross-validated setting was more strongly
+  regularized at lambda `10` and still worse than no correction.
+
+The selection gate therefore failed before confirmation evaluation. The two
+global-test CMS IDs remain sealed from adapter prediction. No
+`adapter_for_test`, confirmation report, ONNX, Windows staging directory, or
+active-model change was produced.
+
+This result does not support a transferable low-order CMS correction from the
+available 19 global-train regional IDs. It does support retaining the frozen
+global model unchanged. BYS still has no observed training rows, so this study
+also provides no empirical basis for claiming a Yellow Sea calibration.

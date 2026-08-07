@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_global_adapter_v1",
+  "created_at_utc": "2026-08-07T07:31:52.995607+00:00",
+  "selection_code_git_commit": "b207503ba08478c38727c3c10177edc5b2185372",
+  "base_model": {
+    "path": "deployment/releases/wdf_core6_circular_mwd_v2/wdf_drifter.onnx",
+    "required_sha256": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
+    "weights_trainable": false
+  },
+  "adapter_target": "observed residual - authoritative frozen-global ONNX prediction",
+  "candidates": {
+    "G0_global_only": {
+      "name": "G0_global_only",
+      "family": "none",
+      "parameter_names": [],
+      "parameter_count": 0,
+      "description": "Frozen global ONNX without correction."
+    },
+    "G1_bias2": {
+      "name": "G1_bias2",
+      "family": "bias",
+      "parameter_names": [
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 2,
+      "description": "Two-component regional bias."
+    },
+    "G2_wind_rotation4": {
+      "name": "G2_wind_rotation4",
+      "family": "wind_rotation",
+      "parameter_names": [
+        "along_wind",
+        "cross_wind",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 4,
+      "description": "Rotation-structured wind correction plus component bias."
+    },
+    "G3_wind_full6": {
+      "name": "G3_wind_full6",
+      "family": "wind_full",
+      "parameter_names": [
+        "u_from_u10",
+        "u_from_v10",
+        "v_from_u10",
+        "v_from_v10",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 6,
+      "description": "Full 2x2 wind correction plus component bias."
+    },
+    "G4_global_calibration6": {
+      "name": "G4_global_calibration6",
+      "family": "global_calibration",
+      "parameter_names": [
+        "u_from_global_u",
+        "u_from_global_v",
+        "v_from_global_u",
+        "v_from_global_v",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 6,
+      "description": "Additive calibration of frozen-global output plus bias."
+    },
+    "G5_core6_linear14": {
+      "name": "G5_core6_linear14",
+      "family": "core6",
+      "parameter_names": [
+        "u_from_era5_u10",
+        "u_from_era5_v10",
+        "u_from_era5_swh",
+        "u_from_era5_mwp",
+        "u_from_era5_wave_dir_sin",
+        "u_from_era5_wave_dir_cos",
+        "v_from_era5_u10",
+        "v_from_era5_v10",
+        "v_from_era5_swh",
+        "v_from_era5_mwp",
+        "v_from_era5_wave_dir_sin",
+        "v_from_era5_wave_dir_cos",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 14,
+      "description": "Full core6 linear discrepancy plus component bias."
+    }
+  },
+  "lambda_grid": [
+    0.0,
+    0.0001,
+    0.001,
+    0.01,
+    0.1,
+    1.0,
+    10.0
+  ],
+  "fit_weighting": "each original_ID has total weight 1; rows within ID weight 1/n",
+  "ridge": "RMS-scaled basis; all coefficients including bias penalized; lambda shrinks exactly toward frozen global",
+  "selection": {
+    "development_split": "CMS IDs inherited from frozen-global train",
+    "gate_split": "CMS IDs inherited from frozen-global validation",
+    "confirmation_split": "CMS IDs inherited from frozen-global test",
+    "nested_outer_group_folds": 5,
+    "nested_inner_group_folds": 4,
+    "random_seed": 42,
+    "primary_score": "equal-ID mean adapter-minus-global MSE",
+    "tie_rule": "one-standard-error; fewer parameters; stronger lambda"
+  },
+  "development_gate": {
+    "nonzero_adapter": true,
+    "minimum_macro_id_rmse_improvement": 0.02,
+    "minimum_id_win_rate": 0.6,
+    "minimum_outer_family_frequency": 0.6,
+    "maximum_subregion_macro_rmse_degradation": 0.02,
+    "maximum_correction_to_global_p99_ratio": 1.0
+  },
+  "validation_gate": {
+    "point_rmse_must_improve": true,
+    "macro_id_rmse_must_improve": true,
+    "maximum_single_id_rmse_degradation": 0.05
+  },
+  "confirmation_acceptance": {
+    "point_joint_r2_must_improve": true,
+    "point_rmse_must_improve": true,
+    "maximum_single_id_rmse_degradation": 0.05,
+    "trajectory_24h_macro_median_must_improve": true,
+    "maximum_trajectory_24h_macro_p90_degradation": 0.05
+  },
+  "explicitly_forbidden": [
+    "global weight fine-tuning",
+    "nonlinear adapter",
+    "new input features",
+    "subregion-specific models",
+    "adapter ensemble",
+    "test-driven reselection"
+  ]
+}
