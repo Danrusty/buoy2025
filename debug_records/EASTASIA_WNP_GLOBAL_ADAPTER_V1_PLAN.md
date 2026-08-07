@@ -56,3 +56,24 @@ China Marginal Seas-only dataset.
 Reports include expanded overall, original CMS, BYS, ECS, NSCS,
 105–140 E and 140–170 E subsets. The previous CMS adapter artifacts remain
 immutable under their original version.
+
+## Prepared data result
+
+Data preparation used code commit
+`63003b5b7f8adb6ec620cbefae41a106f40d2513`.
+
+- 96 eligible `original_ID`, 454,892 selected hourly rows.
+- 75 / 12 / 9 frozen-global train / validation / test lineage IDs.
+- 371,404 / 55,691 / 27,797 rows by lineage split.
+- Pairwise ID intersections are all zero.
+- 162 source segments were separated into 219 continuous hourly episodes.
+- Coordinate extrema are 15.000012–44.995888 N and
+  110.461182–169.999725 E; no row east of 170 E is present.
+- All target/current/core6 fields have zero missing values.
+- All selected identity columns match between the v1 mask and circular-v2
+  feature source.
+- All 454,892 rows use the repaired circular-v2 wave direction.
+- Original CMS subset: 21,074 rows.
+- 105–140 E / 140–170 E support: 101,127 / 353,765 rows.
+- Filtered-data SHA256:
+  `3991faf3f5503cb69a089e1f432711977f64f2c53af069229c3e8826d73d9a85`.

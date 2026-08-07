@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_eastasia_wnp_global_adapter_v1",
+  "coordinate_system": "WGS84 latitude/longitude degrees",
+  "longitude_convention": "-180_to_180",
+  "boundary_policy": "inclusive",
+  "latitude": [
+    15.0,
+    45.0
+  ],
+  "longitude": [
+    105.0,
+    170.0
+  ],
+  "row_selection": "Only rows inside the rectangle are retained; entering the rectangle does not admit outside rows from the same original_ID.",
+  "minimum_regional_hourly_points_per_original_id": 24,
+  "count_threshold_override": {
+    "source_branch": "wdf_cms_range_search_v1",
+    "source_commit": "2c7111d451411bb2df96b6e75e111d9ef2451d7a",
+    "accepted_counts": {
+      "total": 96,
+      "train": 75,
+      "val": 12,
+      "test": 9
+    }
+  },
+  "mask_source": "processed_data/trajectories_with_all_features.pkl",
+  "training_feature_source": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
+  "filtered_training_data": "processed_data/trajectories_eastasia_wnp_105_170_circular_mwd_v2.pkl",
+  "memberships": {
+    "EAWNP": "selected rectangle overall",
+    "CMS": "original three-rectangle CMS union subset",
+    "BYS": "original Bohai + Yellow Sea rectangle subset",
+    "ECS": "original East China Sea rectangle subset",
+    "NSCS": "original Northern South China Sea rectangle subset",
+    "WEST_105_140": "selected rows with longitude <= 140 E",
+    "EAST_140_170": "selected rows with longitude > 140 E"
+  }
+}

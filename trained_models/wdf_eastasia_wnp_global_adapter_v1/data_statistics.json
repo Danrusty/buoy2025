@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_eastasia_wnp_global_adapter_v1",
+  "created_at_utc": "2026-08-07T08:44:11.583829+00:00",
+  "minimum_regional_hourly_points_per_original_id": 24,
+  "before_minimum_threshold": {
+    "n_original_ids": 97,
+    "n_samples": 454912
+  },
+  "excluded_by_minimum_threshold": {
+    "n_original_ids": 1,
+    "original_ids": [
+      "300534060259940"
+    ]
+  },
+  "dataset": {
+    "n_original_ids": 96,
+    "n_samples": 454892,
+    "n_source_segments": 162,
+    "n_hourly_episodes": 219
+  },
+  "membership_counts": {
+    "EAWNP": 454892,
+    "CMS": 21074,
+    "BYS": 0,
+    "ECS": 13956,
+    "NSCS": 7118,
+    "WEST_105_140": 101127,
+    "EAST_140_170": 353765
+  },
+  "month_counts": {
+    "1": 38511,
+    "2": 35444,
+    "3": 36465,
+    "4": 35625,
+    "5": 38301,
+    "6": 39065,
+    "7": 44838,
+    "8": 44438,
+    "9": 41240,
+    "10": 43678,
+    "11": 28509,
+    "12": 28778
+  },
+  "split_statistics": {
+    "train": {
+      "n_original_ids": 75,
+      "n_samples": 371404,
+      "n_episodes": 166,
+      "membership_counts": {
+        "EAWNP": 371404,
+        "CMS": 15823,
+        "BYS": 0,
+        "ECS": 11461,
+        "NSCS": 4362,
+        "WEST_105_140": 86982,
+        "EAST_140_170": 284422
+      },
+      "month_counts": {
+        "1": 32136,
+        "2": 30029,
+        "3": 30287,
+        "4": 28858,
+        "5": 31269,
+        "6": 33075,
+        "7": 37304,
+        "8": 37104,
+        "9": 32736,
+        "10": 34065,
+        "11": 21517,
+        "12": 23024
+      }
+    },
+    "val": {
+      "n_original_ids": 12,
+      "n_samples": 55691,
+      "n_episodes": 23,
+      "membership_counts": {
+        "EAWNP": 55691,
+        "CMS": 4508,
+        "BYS": 0,
+        "ECS": 2075,
+        "NSCS": 2433,
+        "WEST_105_140": 10373,
+        "EAST_140_170": 45318
+      },
+      "month_counts": {
+        "1": 5324,
+        "2": 4579,
+        "3": 4690,
+        "4": 5159,
+        "5": 4947,
+        "6": 4268,
+        "7": 4781,
+        "8": 5142,
+        "9": 5056,
+        "10": 4604,
+        "11": 3543,
+        "12": 3598
+      }
+    },
+    "test": {
+      "n_original_ids": 9,
+      "n_samples": 27797,
+      "n_episodes": 30,
+      "membership_counts": {
+        "EAWNP": 27797,
+        "CMS": 743,
+        "BYS": 0,
+        "ECS": 420,
+        "NSCS": 323,
+        "WEST_105_140": 3772,
+        "EAST_140_170": 24025
+      },
+      "month_counts": {
+        "1": 1051,
+        "2": 836,
+        "3": 1488,
+        "4": 1608,
+        "5": 2085,
+        "6": 1722,
+        "7": 2753,
+        "8": 2192,
+        "9": 3448,
+        "10": 5009,
+        "11": 3449,
+        "12": 2156
+      }
+    }
+  },
+  "data_quality": {
+    "missing_required_values": {
+      "era5_u10": 0,
+      "era5_v10": 0,
+      "era5_swh": 0,
+      "era5_mwp": 0,
+      "era5_wave_dir_sin": 0,
+      "era5_wave_dir_cos": 0,
+      "ve": 0,
+      "vn": 0,
+      "cfsv2_u": 0,
+      "cfsv2_v": 0
+    },
+    "v1_v2_identity_columns_verified": [
+      "ID",
+      "time",
+      "latitude",
+      "longitude",
+      "ve",
+      "vn",
+      "original_ID",
+      "segment_index",
+      "cfsv2_u",
+      "cfsv2_v",
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp"
+    ],
+    "wave_direction_rows_changed_v1_to_circular_v2": 454892,
+    "wave_direction_rows_total": 454892
+  }
+}
