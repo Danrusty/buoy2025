@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "run_name": "global_mlp_lat7_v1",
+  "created_at_utc": "2026-08-07T12:38:11.626345+00:00",
+  "training_code_git_commit": "b8441b81d8baa9d684a2a10b9e7f3d524a910522",
+  "lineage": {
+    "shared_experiment": "global_factorial_v1",
+    "data_manifest": "trained_models/global_factorial_v1/data_manifest.json",
+    "data_manifest_sha256": "b683aa9f1bc484474db7fc26442000f73a5eef7b5b022e138587539aa63a0653",
+    "frozen_reference_replay": "trained_models/global_factorial_v1/frozen_global_replay.json",
+    "frozen_reference_replay_sha256": "784b1961974e7f982a41490f0d5b2148f7949ff43bfcb213b7f4b6f88c3c1fb5"
+  },
+  "features": [
+    "era5_u10",
+    "era5_v10",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos",
+    "sin_latitude"
+  ],
+  "latitude_formula": "sin(deg2rad(latitude))",
+  "targets": {
+    "residual_u": "ve - cfsv2_u",
+    "residual_v": "vn - cfsv2_v"
+  },
+  "artifacts": {
+    "checkpoint": {
+      "path": "trained_models/global_mlp_lat7_v1/best_mlp.pth",
+      "sha256": "40d6c21fb32486cb69306bd54938397ff3bb43480466cb92bd80dfb6003f6b20"
+    },
+    "scaler": {
+      "path": "trained_models/global_mlp_lat7_v1/x_scaler.pkl",
+      "sha256": "053afa9c45f2672ae84439b9e2ddfd438b66ee25322cb3239d1bcc81f9f3f507",
+      "mean": [
+        -0.5929821762779722,
+        0.10755626118182826,
+        2.4452405890492797,
+        8.878838666692591,
+        -0.07113936644587779,
+        -0.15388750906817056,
+        0.029280636515355712
+      ],
+      "scale": [
+        5.905031423755503,
+        5.120804312940217,
+        1.0961271231334728,
+        1.708236431405307,
+        0.7107380997460813,
+        0.6827218896902633,
+        0.550307614208241
+      ],
+      "n_samples_seen": 11694073
+    },
+    "metrics": {
+      "path": "trained_models/global_mlp_lat7_v1/metrics.json",
+      "sha256": "529ce2c22b993db9af44ff4ee506a9160def442cb2bdf837c9408ca28ac43395"
+    },
+    "fixed_test_io": {
+      "path": "trained_models/global_mlp_lat7_v1/fixed_test_io.json",
+      "sha256": "78ebf16d79cb12c8b4349f713885a7bc1797776001db219d8e2e06906296827e"
+    },
+    "prediction_cache": {
+      "path": "processed_data/global_factorial_v1/mlp_lat7_test_pred.npy",
+      "shape": [
+        2425415,
+        2
+      ],
+      "dtype": "float32",
+      "sha256": "013f28dd8a5e04b5d91294d7c56139bfc4685551c8b8884778becf585530e66d"
+    }
+  },
+  "software": {
+    "numpy": "2.4.0",
+    "scikit_learn": "1.8.0",
+    "torch": "2.5.1",
+    "cuda": "12.4",
+    "device": "cuda"
+  },
+  "log_path": "logs/global_mlp_lat7_v1_20260807_203610.log"
+}
