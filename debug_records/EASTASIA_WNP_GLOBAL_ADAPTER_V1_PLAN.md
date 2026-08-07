@@ -77,3 +77,45 @@ Data preparation used code commit
 - 105–140 E / 140–170 E support: 101,127 / 353,765 rows.
 - Filtered-data SHA256:
   `3991faf3f5503cb69a089e1f432711977f64f2c53af069229c3e8826d73d9a85`.
+
+## Executed adapter result
+
+Selection was executed from repository commit
+`fa2c208b87dd3187c3a3fa11da4d4d607fb3a2e1`.
+
+- Frozen-global development joint R2: `0.067753`.
+- Frozen-global development RMSE: `0.270941 m/s`.
+- Four of five nested outer folds selected `G0_global_only`; one selected
+  strongly regularized `G3_wind_full6`.
+- The resulting nested out-of-fold mixture degraded macro-ID RMSE by
+  `0.0154%` and improved only `6.7%` of IDs.
+- On all 75 development IDs, `G0_global_only` had the best equal-ID mean
+  delta MSE (`0`) and was the only candidate inside the one-standard-error
+  threshold.
+- The nearest nonzero candidate was
+  `G4_global_calibration6, lambda=10`. Its row-weighted point RMSE decreased
+  only from `0.270941` to `0.270933 m/s`, while its equal-ID mean MSE
+  increased by `0.000003136`, macro-ID RMSE degraded by `0.0033%`, and ID
+  win rate was `53.3%`.
+- Every nonzero family's best candidate used the strongest tested
+  regularization (`lambda=10`) and still had worse equal-ID mean MSE than
+  frozen global.
+- Nested macro-ID degradation was `0.0620%` on the original CMS subset,
+  `0.0200%` west of 140 E and `0.0044%` east of 140 E.
+- BYS still has zero observed rows.
+
+Because the selected candidate is G0, the 12-ID gate is unchanged from frozen
+global: joint R2 `0.050967`, RMSE `0.270237 m/s`. It cannot satisfy the
+nonzero, development-improvement or gate-improvement requirements.
+
+The selection gate therefore failed. The nine frozen-global test-lineage IDs
+remain sealed from model prediction; no confirmation evaluation,
+`adapter_for_test`, ONNX graph, Windows staging directory or active-model
+change was produced.
+
+Increasing independent development support from 19 to 75 IDs removes the
+small-sample-only explanation for the CMS adapter failure. Within the locked
+linear candidate set, the remaining frozen-global error does not contain a
+stable low-order geographic calibration that generalizes across physical
+buoys. Tiny row-weighted gains are concentrated by record length and disappear
+under equal-ID evaluation.

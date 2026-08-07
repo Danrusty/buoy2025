@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_eastasia_wnp_global_adapter_v1",
+  "created_at_utc": "2026-08-07T08:45:17.785548+00:00",
+  "selection_code_git_commit": "fa2c208b87dd3187c3a3fa11da4d4d607fb3a2e1",
+  "scientific_change_from_cms_adapter_v1": "Only the row-level geographic filter and inherited population change; adapter candidates, fitting, selection and gates remain the same.",
+  "region": {
+    "latitude": [
+      15.0,
+      45.0
+    ],
+    "longitude": [
+      105.0,
+      170.0
+    ],
+    "boundary_policy": "inclusive",
+    "minimum_hourly_rows_per_original_id": 24,
+    "expected_population": {
+      "total": 96,
+      "train": 75,
+      "val": 12,
+      "test": 9,
+      "samples": 454892
+    },
+    "count_threshold_override": {
+      "source_branch": "wdf_cms_range_search_v1",
+      "source_commit": "2c7111d451411bb2df96b6e75e111d9ef2451d7a",
+      "target_or_model_metrics_seen_before_override": false
+    }
+  },
+  "base_model": {
+    "path": "deployment/releases/wdf_core6_circular_mwd_v2/wdf_drifter.onnx",
+    "required_sha256": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
+    "weights_trainable": false
+  },
+  "adapter_target": "observed residual - authoritative frozen-global ONNX prediction",
+  "target_definition": {
+    "residual_u": "drifter_ve - CFSv2_u",
+    "residual_v": "drifter_vn - CFSv2_v"
+  },
+  "candidates": {
+    "G0_global_only": {
+      "name": "G0_global_only",
+      "family": "none",
+      "parameter_names": [],
+      "parameter_count": 0,
+      "description": "Frozen global ONNX without correction."
+    },
+    "G1_bias2": {
+      "name": "G1_bias2",
+      "family": "bias",
+      "parameter_names": [
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 2,
+      "description": "Two-component regional bias."
+    },
+    "G2_wind_rotation4": {
+      "name": "G2_wind_rotation4",
+      "family": "wind_rotation",
+      "parameter_names": [
+        "along_wind",
+        "cross_wind",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 4,
+      "description": "Rotation-structured wind correction plus component bias."
+    },
+    "G3_wind_full6": {
+      "name": "G3_wind_full6",
+      "family": "wind_full",
+      "parameter_names": [
+        "u_from_u10",
+        "u_from_v10",
+        "v_from_u10",
+        "v_from_v10",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 6,
+      "description": "Full 2x2 wind correction plus component bias."
+    },
+    "G4_global_calibration6": {
+      "name": "G4_global_calibration6",
+      "family": "global_calibration",
+      "parameter_names": [
+        "u_from_global_u",
+        "u_from_global_v",
+        "v_from_global_u",
+        "v_from_global_v",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 6,
+      "description": "Additive calibration of frozen-global output plus bias."
+    },
+    "G5_core6_linear14": {
+      "name": "G5_core6_linear14",
+      "family": "core6",
+      "parameter_names": [
+        "u_from_era5_u10",
+        "u_from_era5_v10",
+        "u_from_era5_swh",
+        "u_from_era5_mwp",
+        "u_from_era5_wave_dir_sin",
+        "u_from_era5_wave_dir_cos",
+        "v_from_era5_u10",
+        "v_from_era5_v10",
+        "v_from_era5_swh",
+        "v_from_era5_mwp",
+        "v_from_era5_wave_dir_sin",
+        "v_from_era5_wave_dir_cos",
+        "bias_u",
+        "bias_v"
+      ],
+      "parameter_count": 14,
+      "description": "Full core6 linear discrepancy plus component bias."
+    }
+  },
+  "lambda_grid": [
+    0.0,
+    0.0001,
+    0.001,
+    0.01,
+    0.1,
+    1.0,
+    10.0
+  ],
+  "fit_weighting": "each original_ID has total weight 1; rows within ID weight 1/n",
+  "ridge": "RMS-scaled basis; all coefficients including bias penalized; lambda shrinks exactly toward frozen global",
+  "selection": {
+    "development_split": "75 regional IDs inherited from frozen-global train",
+    "gate_split": "12 regional IDs inherited from frozen-global validation",
+    "confirmation_split": "9 regional IDs inherited from frozen-global test",
+    "nested_outer_group_folds": 5,
+    "nested_inner_group_folds": 4,
+    "random_seed": 42,
+    "primary_score": "equal-ID mean adapter-minus-global MSE",
+    "tie_rule": "one-standard-error; fewer parameters; stronger lambda"
+  },
+  "development_gate": {
+    "nonzero_adapter": true,
+    "minimum_macro_id_rmse_improvement": 0.02,
+    "minimum_id_win_rate": 0.6,
+    "minimum_outer_family_frequency": 0.6,
+    "maximum_ecs_nscs_macro_rmse_degradation": 0.02,
+    "maximum_correction_to_global_p99_ratio": 1.0
+  },
+  "validation_gate": {
+    "point_rmse_must_improve": true,
+    "macro_id_rmse_must_improve": true,
+    "maximum_single_id_rmse_degradation": 0.05
+  },
+  "confirmation_acceptance": {
+    "point_joint_r2_must_improve": true,
+    "point_rmse_must_improve": true,
+    "maximum_single_id_rmse_degradation": 0.05,
+    "trajectory_24h_macro_median_must_improve": true,
+    "maximum_trajectory_24h_macro_p90_degradation": 0.05
+  },
+  "reported_subsets": [
+    "EAWNP",
+    "original CMS",
+    "BYS",
+    "ECS",
+    "NSCS",
+    "WEST_105_140",
+    "EAST_140_170"
+  ],
+  "explicitly_forbidden": [
+    "global weight fine-tuning",
+    "nonlinear adapter",
+    "new input features",
+    "subregion-specific models",
+    "adapter ensemble",
+    "test-driven reselection",
+    "rows east of 170 E"
+  ]
+}
