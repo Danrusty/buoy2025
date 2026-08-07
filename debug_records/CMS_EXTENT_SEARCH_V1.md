@@ -44,3 +44,27 @@ from adapter result commit `422a4db`. After the range is locked and pushed,
 adapter work returns to `wdf_cms_regional_core6_v1`. The previous
 `wdf_cms_global_adapter_v1` result remains immutable; any expanded-range study
 must use a new model/artifact version.
+
+## Executed result
+
+The final count-only scan used code commit
+`0ad58d8480edb3003bff1e241a2c3b32b88a1d1e`.
+
+| Longitude range | Total IDs | Train | Validation | Test | Rows | Pass |
+|---|---:|---:|---:|---:|---:|---|
+| 105–140 E | 53 | 41 | 9 | 3 | 101,127 | no |
+| 105–150 E | 74 | 59 | 11 | 4 | 238,036 | no |
+| 105–160 E | 87 | 69 | 11 | 7 | 367,649 | no |
+| 105–170 E | 96 | 75 | 12 | 9 | 454,892 | no |
+| 105–180 E | 172 | 131 | 18 | 23 | 526,212 | yes |
+
+The selected minimum 10-degree candidate is therefore:
+
+```text
+15–45 N, 105–180 E
+```
+
+This selected support reaches the dateline and must not be described as a
+China Marginal Seas-only dataset. It is an expanded East Asia–western North
+Pacific latitude band designed to obtain enough independent frozen-lineage
+IDs for the adapter generalization test.
