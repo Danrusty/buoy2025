@@ -4,7 +4,7 @@
 
 - 结构：`plain_64_32`，参数量 2,594
 - 科学状态：已冻结的 CMS 网络重构实验
-- 部署状态：Windows staging 候选，禁止自动激活
+- 部署状态：Windows C++/Fortran 已验证，未激活
 - 权威 ONNX：`wdf_cms_orig_core6_v1.onnx`
 - Fortran 兼容别名：`wdf_drifter.onnx`
 - Windows staging：`D:\OilspillModel\OilSpillModel\ModelRun\release_onnx\wdf_cms_network_redesign_v1`
@@ -52,8 +52,15 @@ Fortran 验证程序不变。
 
 ## Windows 验证
 
-1. 保持 release 文件完整，不与旧版本混用。
-2. 在 staging 目录运行 `verify_windows.bat`。
-3. 要求所有输出与 `expected_output.csv` 的绝对误差 `< 1e-4`。
-4. 记录 `SHA256SUMS.txt` 中权威 ONNX 的 SHA256。
-5. 不修改 release root 或 `onnx_active`。
+- 验证日期：2026-08-07
+- VS2022/MSVC x64 wrapper 构建：通过
+- Intel oneAPI `ifx` 编译与链接：通过
+- Fortran → C++ → ONNX Runtime 推理：通过
+- 三组固定输出最大绝对误差：`0.0000E+00`
+- 验收阈值：`< 1e-4`
+- 验证的 ONNX SHA256：
+  `b79afcbf0f70add4ec6dfdf4f3299e69254e40c03a343c10171d1b1b44d09ff5`
+- release root 与 `onnx_active` 均保持冻结 global 模型，未修改
+
+复验时保持 release 文件完整，不与旧版本混用，并在 staging 目录运行
+`verify_windows.bat`。

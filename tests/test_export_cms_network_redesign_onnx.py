@@ -15,6 +15,7 @@ from export_cms_network_redesign_onnx import (  # noqa: E402
     ONNX_FILENAME,
     RELEASE_DIR,
     RELEASE_VERSION,
+    WINDOWS_ACCEPTANCE_THRESHOLD,
     WINDOWS_STAGING_PATH,
 )
 
@@ -36,6 +37,7 @@ class ExportCmsNetworkRedesignOnnxTest(unittest.TestCase):
                 r"\wdf_cms_network_redesign_v1"
             )
         )
+        self.assertEqual(WINDOWS_ACCEPTANCE_THRESHOLD, 1e-4)
 
 
 if __name__ == "__main__":

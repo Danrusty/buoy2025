@@ -3,7 +3,7 @@
   "model_version": "wdf_cms_network_redesign_v1",
   "created_at_utc": "2026-08-07T05:29:48.622785+00:00",
   "scientific_status": "frozen_experimental_cms_architecture_redesign_not_selected",
-  "deployment_status": "candidate_pending_windows_validation",
+  "deployment_status": "windows_cpp_fortran_validated_not_activated",
   "activation_recommendation": "do_not_activate",
   "freeze_code_git_commit": "3a600767d60fc106f87f41a4060400136ec067f1",
   "selection_code_git_commit": "3f8edb03753652c6ba0300f17be7efb97d9b8c3b",
@@ -405,7 +405,28 @@
   "windows": {
     "staging_path": "D:\\OilspillModel\\OilSpillModel\\ModelRun\\release_onnx\\wdf_cms_network_redesign_v1",
     "onnx_active_modified": false,
-    "acceptance_threshold": 1e-05
+    "python_export_acceptance_threshold": 1e-05,
+    "fortran_acceptance_threshold": 0.0001,
+    "validation": {
+      "validated_at_utc": "2026-08-07T05:32:11Z",
+      "command": "verify_windows.bat",
+      "environment": {
+        "platform": "Windows x64",
+        "visual_studio": "2022 17.14.29",
+        "msvc": "19.44.35225",
+        "fortran": "Intel oneAPI ifx 2022.1.0 Build 20220316",
+        "onnxruntime": "1.17.1"
+      },
+      "cpp_wrapper_build": "passed",
+      "fortran_compile_and_link": "passed",
+      "fortran_cpp_onnx_inference": "passed",
+      "maximum_absolute_difference": 0.0,
+      "validated_onnx_sha256": "b79afcbf0f70add4ec6dfdf4f3299e69254e40c03a343c10171d1b1b44d09ff5",
+      "compatibility_alias_byte_identical": true,
+      "existing_release_root_onnx_sha256_after": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
+      "existing_onnx_active_sha256_after": "787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941",
+      "previous_cms_staging_onnx_sha256_after": "5e89aeac80c96b122a957b2fb849db65f984667779712ef4b8a602ced4b3eb83"
+    }
   },
   "software": {
     "python_environment": "Miniforge3 conda env buoy-drifter",

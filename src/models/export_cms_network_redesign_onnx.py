@@ -56,6 +56,7 @@ WINDOWS_STAGING_PATH = (
     r"D:\OilspillModel\OilSpillModel\ModelRun\release_onnx"
     rf"\{RELEASE_VERSION}"
 )
+WINDOWS_ACCEPTANCE_THRESHOLD = 1e-4
 
 SUPPORT_FILES: dict[Path, str] = {
     ARTIFACT_DIR / "selected" / "best_mlp.pth": "best_mlp.pth",
@@ -481,7 +482,8 @@ def _build_release_contents(
         "windows": {
             "staging_path": WINDOWS_STAGING_PATH,
             "onnx_active_modified": False,
-            "acceptance_threshold": MAX_ALLOWED_DIFF,
+            "python_export_acceptance_threshold": MAX_ALLOWED_DIFF,
+            "fortran_acceptance_threshold": WINDOWS_ACCEPTANCE_THRESHOLD,
         },
         "software": {
             "python_environment": "Miniforge3 conda env buoy-drifter",
