@@ -10,10 +10,10 @@ import numpy as np
 from sklearn.metrics import r2_score
 
 
-MODELS_DIR = Path(__file__).resolve().parents[1] / "src" / "models"
-sys.path.insert(0, str(MODELS_DIR))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from evaluation import regression_metrics  # noqa: E402
+from src.models.evaluation import regression_metrics  # noqa: E402
 
 
 class RegressionMetricsTest(unittest.TestCase):

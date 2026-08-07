@@ -14,10 +14,9 @@ baseline.py
   3. 打印回归系数矩阵、WDF 估算值、R²、RMSE
   4. 与"预测零"基准比较
 
-运行方式：
-  cd src/models
-  conda run -n buoy-drifter python baseline.py            # 采样模式（快速）
-  conda run -n buoy-drifter python baseline.py --full     # 完整数据集
+运行方式（仓库根目录）：
+  conda run -n buoy-drifter python -m src.models.training.baseline
+  conda run -n buoy-drifter python -m src.models.training.baseline --full
 """
 
 import argparse
@@ -29,12 +28,12 @@ import joblib
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from data_loader import (
+from ..data_loader import (
     DEFAULT_RUN_NAME,
     TRAINED_MODELS_DIR,
     load_and_split_data,
 )
-from evaluation import regression_metrics
+from ..evaluation import regression_metrics
 
 logger = logging.getLogger(__name__)
 

@@ -16,9 +16,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 
-from baseline import run_linear_baseline
-from data_loader import FEATURE_COLS, PROJECT_ROOT, load_and_split_data
-from train_mlp import evaluate_and_compare, plot_history, train
+from ..data_loader import FEATURE_COLS, PROJECT_ROOT, load_and_split_data
+from .baseline import run_linear_baseline
+from .train_mlp import evaluate_and_compare, plot_history, train
 
 
 ABLATION_NAME = "ablation_study"

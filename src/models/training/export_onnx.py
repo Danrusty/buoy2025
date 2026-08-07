@@ -25,8 +25,8 @@ import onnxruntime as ort
 import torch
 import torch.nn as nn
 
-from data_loader import PROJECT_ROOT, TARGET_COLS
-from train_mlp import ResidualMLP
+from ..data_loader import PROJECT_ROOT, TARGET_COLS
+from .train_mlp import ResidualMLP
 
 
 logger = logging.getLogger(__name__)
@@ -435,7 +435,9 @@ def build_release(
     )
 
     for filename in WRAPPER_FILES:
-        source_path = PROJECT_ROOT / "src" / "models" / filename
+        source_path = (
+            PROJECT_ROOT / "src" / "models" / "deployment" / filename
+        )
         destination_path = release_dir / filename
         if source_path.suffix.lower() == ".bat":
             # cmd.exe 的续行依赖 CRLF，因此发布时显式转换换行符。

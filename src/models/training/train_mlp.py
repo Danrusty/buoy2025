@@ -14,9 +14,9 @@ import matplotlib
 matplotlib.use('Agg')  # 无 GUI 环境下保存图片
 import matplotlib.pyplot as plt
 
-from data_loader import DEFAULT_RUN_NAME, PROJECT_ROOT, load_and_split_data
-from baseline import run_linear_baseline
-from evaluation import regression_metrics
+from ..data_loader import DEFAULT_RUN_NAME, PROJECT_ROOT, load_and_split_data
+from ..evaluation import regression_metrics
+from .baseline import run_linear_baseline
 
 # ==============================================================================
 # 路径配置
