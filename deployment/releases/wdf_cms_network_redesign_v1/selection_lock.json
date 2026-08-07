@@ -1,0 +1,2620 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-08-07T05:23:53.176614+00:00",
+  "study": "wdf_cms_core6_network_redesign_v1",
+  "selection_code_git_commit": "3f8edb03753652c6ba0300f17be7efb97d9b8c3b",
+  "test_status": "sealed_not_evaluated",
+  "test_original_ids": [
+    "300234063946920",
+    "300234066613930",
+    "300234066911830",
+    "300534060522280"
+  ],
+  "test_original_ids_sha256": "59e6c00d00eeb588a3423a1495ada1974da4e7ae5d55b3bd7b08dd6f1910e5ae",
+  "training_contract": {
+    "features": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ],
+    "target": {
+      "residual_u": "ve - cfsv2_u",
+      "residual_v": "vn - cfsv2_v"
+    },
+    "loss": "MSELoss",
+    "batch_size": 8192,
+    "max_epochs": 200,
+    "early_stopping_patience": 20,
+    "checkpoint_monitor": "validation_loss",
+    "optimizer": "AdamW",
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+    "minimum_learning_rate": 1e-06,
+    "random_seed": 42,
+    "input_scaler": "StandardScaler fit on each training fold only",
+    "forbidden_changes": [
+      "fixed 0.03 correction",
+      "regional target correction",
+      "LSTM or sequence model",
+      "new features",
+      "automatic hyperparameter search",
+      "subregion-specific models",
+      "ensemble deployment"
+    ]
+  },
+  "candidate_registry": {
+    "linear_core6": {
+      "name": "linear_core6",
+      "family": "plain",
+      "hidden_sizes": [],
+      "normalization": "none",
+      "residual_blocks": 0,
+      "description": "14-parameter linear neural control using all core6 inputs."
+    },
+    "plain_16_16": {
+      "name": "plain_16_16",
+      "family": "plain",
+      "hidden_sizes": [
+        16,
+        16
+      ],
+      "normalization": "none",
+      "residual_blocks": 0,
+      "description": "Very small two-layer ReLU MLP without normalization."
+    },
+    "plain_32_32": {
+      "name": "plain_32_32",
+      "family": "plain",
+      "hidden_sizes": [
+        32,
+        32
+      ],
+      "normalization": "none",
+      "residual_blocks": 0,
+      "description": "Small two-layer ReLU MLP without normalization."
+    },
+    "plain_64_32": {
+      "name": "plain_64_32",
+      "family": "plain",
+      "hidden_sizes": [
+        64,
+        32
+      ],
+      "normalization": "none",
+      "residual_blocks": 0,
+      "description": "Moderate tapered ReLU MLP without normalization."
+    },
+    "linear_skip_32_32": {
+      "name": "linear_skip_32_32",
+      "family": "linear_skip",
+      "hidden_sizes": [
+        32,
+        32
+      ],
+      "normalization": "none",
+      "residual_blocks": 0,
+      "description": "Direct linear WDF path plus a small nonlinear correction."
+    },
+    "linear_skip_64_32": {
+      "name": "linear_skip_64_32",
+      "family": "linear_skip",
+      "hidden_sizes": [
+        64,
+        32
+      ],
+      "normalization": "none",
+      "residual_blocks": 0,
+      "description": "Direct linear WDF path plus a moderate nonlinear correction."
+    },
+    "layernorm_32_32": {
+      "name": "layernorm_32_32",
+      "family": "plain",
+      "hidden_sizes": [
+        32,
+        32
+      ],
+      "normalization": "layernorm",
+      "residual_blocks": 0,
+      "description": "Small MLP with batch-size-independent LayerNorm."
+    },
+    "layernorm_64_32": {
+      "name": "layernorm_64_32",
+      "family": "plain",
+      "hidden_sizes": [
+        64,
+        32
+      ],
+      "normalization": "layernorm",
+      "residual_blocks": 0,
+      "description": "Moderate tapered MLP with LayerNorm."
+    },
+    "residual_layernorm_64": {
+      "name": "residual_layernorm_64",
+      "family": "residual",
+      "hidden_sizes": [
+        64
+      ],
+      "normalization": "layernorm",
+      "residual_blocks": 2,
+      "description": "Two small residual blocks with LayerNorm."
+    },
+    "legacy_core6_433k": {
+      "name": "legacy_core6_433k",
+      "family": "legacy",
+      "hidden_sizes": [
+        512,
+        512,
+        256,
+        128
+      ],
+      "normalization": "batchnorm",
+      "residual_blocks": 0,
+      "description": "Frozen 433k BatchNorm/Dropout network reference."
+    }
+  },
+  "cv_ranking": [
+    "plain_64_32",
+    "plain_32_32",
+    "plain_16_16",
+    "layernorm_64_32",
+    "legacy_core6_433k",
+    "layernorm_32_32",
+    "linear_skip_64_32",
+    "residual_layernorm_64",
+    "linear_skip_32_32",
+    "linear_core6"
+  ],
+  "cv_results": {
+    "linear_core6": {
+      "architecture": {
+        "name": "linear_core6",
+        "family": "plain",
+        "hidden_sizes": [],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "14-parameter linear neural control using all core6 inputs."
+      },
+      "summary": {
+        "parameter_count": 14,
+        "mean_r2_joint": -3.098127966482372,
+        "std_r2_joint": 1.1980913195963487,
+        "minimum_r2_joint": -4.462452271942846,
+        "maximum_r2_joint": -1.358698754638066,
+        "mean_rmse": 0.5961109861687542,
+        "std_rmse": 0.08928632612512916
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "linear_core6",
+            "family": "plain",
+            "hidden_sizes": [],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "14-parameter linear neural control using all core6 inputs."
+          },
+          "parameter_count": 14,
+          "best_epoch": 200,
+          "best_validation_loss": 0.2788413465023041,
+          "validation_metrics": {
+            "r2_u": -1.0509232749151405,
+            "r2_v": -1.6664742343609915,
+            "r2_joint": -1.358698754638066,
+            "rmse": 0.5280543003198214,
+            "mae": 0.4235180514716713
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "linear_core6",
+            "family": "plain",
+            "hidden_sizes": [],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "14-parameter linear neural control using all core6 inputs."
+          },
+          "parameter_count": 14,
+          "best_epoch": 200,
+          "best_validation_loss": 0.2683905065059662,
+          "validation_metrics": {
+            "r2_u": -4.223261947105934,
+            "r2_v": -1.7378794203231585,
+            "r2_joint": -2.9805706837145465,
+            "rmse": 0.5180641829842446,
+            "mae": 0.4069618797381166
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "linear_core6",
+            "family": "plain",
+            "hidden_sizes": [],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "14-parameter linear neural control using all core6 inputs."
+          },
+          "parameter_count": 14,
+          "best_epoch": 200,
+          "best_validation_loss": 0.5678039193153381,
+          "validation_metrics": {
+            "r2_u": -5.932644863841052,
+            "r2_v": -2.8322990413192333,
+            "r2_joint": -4.3824719525801425,
+            "rmse": 0.7535276312628417,
+            "mae": 0.6105328284609689
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "linear_core6",
+            "family": "plain",
+            "hidden_sizes": [],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "14-parameter linear neural control using all core6 inputs."
+          },
+          "parameter_count": 14,
+          "best_epoch": 200,
+          "best_validation_loss": 0.40549635887145996,
+          "validation_metrics": {
+            "r2_u": -6.070159852266246,
+            "r2_v": -2.8547446916194446,
+            "r2_joint": -4.462452271942846,
+            "rmse": 0.6367859863861483,
+            "mae": 0.4737374080366829
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "linear_core6",
+            "family": "plain",
+            "hidden_sizes": [],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "14-parameter linear neural control using all core6 inputs."
+          },
+          "parameter_count": 14,
+          "best_epoch": 200,
+          "best_validation_loss": 0.2960696518421173,
+          "validation_metrics": {
+            "r2_u": -2.2810119977789083,
+            "r2_v": -2.331880341293608,
+            "r2_joint": -2.306446169536258,
+            "rmse": 0.5441228298907155,
+            "mae": 0.4010073019281457
+          }
+        }
+      ]
+    },
+    "plain_16_16": {
+      "architecture": {
+        "name": "plain_16_16",
+        "family": "plain",
+        "hidden_sizes": [
+          16,
+          16
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Very small two-layer ReLU MLP without normalization."
+      },
+      "summary": {
+        "parameter_count": 418,
+        "mean_r2_joint": -0.07076717875914156,
+        "std_r2_joint": 0.010980083545457417,
+        "minimum_r2_joint": -0.0910198112650491,
+        "maximum_r2_joint": -0.0601893095837458,
+        "mean_rmse": 0.3118126039807662,
+        "std_rmse": 0.03492554884437654
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "plain_16_16",
+            "family": "plain",
+            "hidden_sizes": [
+              16,
+              16
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Very small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 418,
+          "best_epoch": 153,
+          "best_validation_loss": 0.13011057674884796,
+          "validation_metrics": {
+            "r2_u": -0.14933219024043964,
+            "r2_v": -0.032707432289658556,
+            "r2_joint": -0.0910198112650491,
+            "rmse": 0.36070844330858143,
+            "mae": 0.2898612333167655
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "plain_16_16",
+            "family": "plain",
+            "hidden_sizes": [
+              16,
+              16
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Very small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 418,
+          "best_epoch": 116,
+          "best_validation_loss": 0.07164828479290009,
+          "validation_metrics": {
+            "r2_u": -0.07273337674371971,
+            "r2_v": -0.04764524242377188,
+            "r2_joint": -0.0601893095837458,
+            "rmse": 0.26767197382095015,
+            "mae": 0.21608744336810468
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "plain_16_16",
+            "family": "plain",
+            "hidden_sizes": [
+              16,
+              16
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Very small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 418,
+          "best_epoch": 90,
+          "best_validation_loss": 0.11555483937263489,
+          "validation_metrics": {
+            "r2_u": -0.05885691117829106,
+            "r2_v": -0.07449455310523212,
+            "r2_joint": -0.06667573214176159,
+            "rmse": 0.3399335865803772,
+            "mae": 0.26807416773869147
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "plain_16_16",
+            "family": "plain",
+            "hidden_sizes": [
+              16,
+              16
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Very small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 418,
+          "best_epoch": 104,
+          "best_validation_loss": 0.07881280779838562,
+          "validation_metrics": {
+            "r2_u": -0.07648508013132638,
+            "r2_v": -0.04962481384710249,
+            "r2_joint": -0.06305494698921443,
+            "rmse": 0.2807362052412761,
+            "mae": 0.20861703157989853
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "plain_16_16",
+            "family": "plain",
+            "hidden_sizes": [
+              16,
+              16
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Very small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 418,
+          "best_epoch": 189,
+          "best_validation_loss": 0.09610793739557266,
+          "validation_metrics": {
+            "r2_u": -0.06763287137116958,
+            "r2_v": -0.07815931626070416,
+            "r2_joint": -0.07289609381593687,
+            "rmse": 0.3100128109526463,
+            "mae": 0.23913392925286903
+          }
+        }
+      ]
+    },
+    "plain_32_32": {
+      "architecture": {
+        "name": "plain_32_32",
+        "family": "plain",
+        "hidden_sizes": [
+          32,
+          32
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Small two-layer ReLU MLP without normalization."
+      },
+      "summary": {
+        "parameter_count": 1346,
+        "mean_r2_joint": -0.06329022020777414,
+        "std_r2_joint": 0.026730219976473065,
+        "minimum_r2_joint": -0.0974542456270483,
+        "maximum_r2_joint": -0.020236825598776653,
+        "mean_rmse": 0.31057828041950974,
+        "std_rmse": 0.034607943446465644
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "plain_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 1346,
+          "best_epoch": 4,
+          "best_validation_loss": 0.12473645806312561,
+          "validation_metrics": {
+            "r2_u": -0.013480348822014765,
+            "r2_v": -0.08723161770624,
+            "r2_joint": -0.05035598326412738,
+            "rmse": 0.3531804751751183,
+            "mae": 0.28357715188736177
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "plain_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 1346,
+          "best_epoch": 20,
+          "best_validation_loss": 0.06894136965274811,
+          "validation_metrics": {
+            "r2_u": -0.0456200660302013,
+            "r2_v": 0.005146414832647994,
+            "r2_joint": -0.020236825598776653,
+            "rmse": 0.26256690166350644,
+            "mae": 0.20964565092633086
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "plain_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 1346,
+          "best_epoch": 20,
+          "best_validation_loss": 0.11697439849376678,
+          "validation_metrics": {
+            "r2_u": -0.10833681281529661,
+            "r2_v": -0.057173869995593485,
+            "r2_joint": -0.08275534140544505,
+            "rmse": 0.34201521169402127,
+            "mae": 0.2706063689848927
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "plain_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 1346,
+          "best_epoch": 65,
+          "best_validation_loss": 0.07902273535728455,
+          "validation_metrics": {
+            "r2_u": -0.13115931134141579,
+            "r2_v": -0.00013809894553085122,
+            "r2_joint": -0.06564870514347332,
+            "rmse": 0.2811098208277607,
+            "mae": 0.20871033989346882
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "plain_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Small two-layer ReLU MLP without normalization."
+          },
+          "parameter_count": 1346,
+          "best_epoch": 13,
+          "best_validation_loss": 0.09860792011022568,
+          "validation_metrics": {
+            "r2_u": -0.11604203108508471,
+            "r2_v": -0.07886646016901189,
+            "r2_joint": -0.0974542456270483,
+            "rmse": 0.314018992737142,
+            "mae": 0.24135387013014276
+          }
+        }
+      ]
+    },
+    "plain_64_32": {
+      "architecture": {
+        "name": "plain_64_32",
+        "family": "plain",
+        "hidden_sizes": [
+          64,
+          32
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Moderate tapered ReLU MLP without normalization."
+      },
+      "summary": {
+        "parameter_count": 2594,
+        "mean_r2_joint": -0.05624194157933513,
+        "std_r2_joint": 0.033863527606975356,
+        "minimum_r2_joint": -0.09496003599917036,
+        "maximum_r2_joint": -0.01406599169927436,
+        "mean_rmse": 0.3090636982922057,
+        "std_rmse": 0.03175939931546849
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "plain_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Moderate tapered ReLU MLP without normalization."
+          },
+          "parameter_count": 2594,
+          "best_epoch": 13,
+          "best_validation_loss": 0.12188727408647537,
+          "validation_metrics": {
+            "r2_u": -0.04639963154487625,
+            "r2_v": -0.0007461384492781775,
+            "r2_joint": -0.023572884997077215,
+            "rmse": 0.3491235940329684,
+            "mae": 0.27870665413085144
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "plain_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Moderate tapered ReLU MLP without normalization."
+          },
+          "parameter_count": 2594,
+          "best_epoch": 74,
+          "best_validation_loss": 0.07400571554899216,
+          "validation_metrics": {
+            "r2_u": -0.09323526603499777,
+            "r2_v": -0.09668480596334295,
+            "r2_joint": -0.09496003599917036,
+            "rmse": 0.27203991481290923,
+            "mae": 0.2179285137546645
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "plain_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Moderate tapered ReLU MLP without normalization."
+          },
+          "parameter_count": 2594,
+          "best_epoch": 32,
+          "best_validation_loss": 0.11762290447950363,
+          "validation_metrics": {
+            "r2_u": -0.1724541506367112,
+            "r2_v": -0.014521909618024464,
+            "r2_joint": -0.09348803012736784,
+            "rmse": 0.3429619472728796,
+            "mae": 0.27014849898819737
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "plain_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Moderate tapered ReLU MLP without normalization."
+          },
+          "parameter_count": 2594,
+          "best_epoch": 19,
+          "best_validation_loss": 0.07824355363845825,
+          "validation_metrics": {
+            "r2_u": -0.12400145491314118,
+            "r2_v": 0.013755924765569416,
+            "r2_joint": -0.055122765073785884,
+            "rmse": 0.279720474494132,
+            "mae": 0.20772455649354202
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "plain_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Moderate tapered ReLU MLP without normalization."
+          },
+          "parameter_count": 2594,
+          "best_epoch": 24,
+          "best_validation_loss": 0.0908857136964798,
+          "validation_metrics": {
+            "r2_u": -0.012897237676388507,
+            "r2_v": -0.015234745722160214,
+            "r2_joint": -0.01406599169927436,
+            "rmse": 0.3014725608481395,
+            "mae": 0.23118642952932558
+          }
+        }
+      ]
+    },
+    "linear_skip_32_32": {
+      "architecture": {
+        "name": "linear_skip_32_32",
+        "family": "linear_skip",
+        "hidden_sizes": [
+          32,
+          32
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Direct linear WDF path plus a small nonlinear correction."
+      },
+      "summary": {
+        "parameter_count": 1360,
+        "mean_r2_joint": -0.34425511146006904,
+        "std_r2_joint": 0.11172607557776196,
+        "minimum_r2_joint": -0.4785800869224267,
+        "maximum_r2_joint": -0.1833455854010403,
+        "mean_rmse": 0.3479095675203428,
+        "std_rmse": 0.03158619026968029
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "linear_skip_32_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a small nonlinear correction."
+          },
+          "parameter_count": 1360,
+          "best_epoch": 200,
+          "best_validation_loss": 0.14116162061691284,
+          "validation_metrics": {
+            "r2_u": -0.2537975868958091,
+            "r2_v": -0.11289358390627147,
+            "r2_joint": -0.1833455854010403,
+            "rmse": 0.3757148164844082,
+            "mae": 0.30154293007928745
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "linear_skip_32_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a small nonlinear correction."
+          },
+          "parameter_count": 1360,
+          "best_epoch": 200,
+          "best_validation_loss": 0.09996943175792694,
+          "validation_metrics": {
+            "r2_u": -0.4071957517007778,
+            "r2_v": -0.5499644221440756,
+            "r2_joint": -0.4785800869224267,
+            "rmse": 0.3161794237686653,
+            "mae": 0.25356648348226307
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "linear_skip_32_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a small nonlinear correction."
+          },
+          "parameter_count": 1360,
+          "best_epoch": 200,
+          "best_validation_loss": 0.15524478256702423,
+          "validation_metrics": {
+            "r2_u": -0.6084446297164652,
+            "r2_v": -0.287989934306365,
+            "r2_joint": -0.4482172820114151,
+            "rmse": 0.3940111357366391,
+            "mae": 0.3133718079466537
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "linear_skip_32_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a small nonlinear correction."
+          },
+          "parameter_count": 1360,
+          "best_epoch": 200,
+          "best_validation_loss": 0.10047610849142075,
+          "validation_metrics": {
+            "r2_u": -0.6632273765184027,
+            "r2_v": -0.044618454806602426,
+            "r2_joint": -0.35392291566250256,
+            "rmse": 0.3169796683398653,
+            "mae": 0.24822962999761794
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "linear_skip_32_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a small nonlinear correction."
+          },
+          "parameter_count": 1360,
+          "best_epoch": 200,
+          "best_validation_loss": 0.11334183067083359,
+          "validation_metrics": {
+            "r2_u": -0.30882692038221893,
+            "r2_v": -0.20559245422370265,
+            "r2_joint": -0.2572096873029608,
+            "rmse": 0.33666279327213594,
+            "mae": 0.25018543788869657
+          }
+        }
+      ]
+    },
+    "linear_skip_64_32": {
+      "architecture": {
+        "name": "linear_skip_64_32",
+        "family": "linear_skip",
+        "hidden_sizes": [
+          64,
+          32
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Direct linear WDF path plus a moderate nonlinear correction."
+      },
+      "summary": {
+        "parameter_count": 2608,
+        "mean_r2_joint": -0.20583624154371138,
+        "std_r2_joint": 0.08760040803842196,
+        "minimum_r2_joint": -0.36362107209220285,
+        "maximum_r2_joint": -0.09654231331135898,
+        "mean_rmse": 0.32940663577447465,
+        "std_rmse": 0.025525204434686498
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "linear_skip_64_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a moderate nonlinear correction."
+          },
+          "parameter_count": 2608,
+          "best_epoch": 200,
+          "best_validation_loss": 0.13072527945041656,
+          "validation_metrics": {
+            "r2_u": -0.14736902363223536,
+            "r2_v": -0.04571560299048261,
+            "r2_joint": -0.09654231331135898,
+            "rmse": 0.3615595076680123,
+            "mae": 0.29163468590614205
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "linear_skip_64_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a moderate nonlinear correction."
+          },
+          "parameter_count": 2608,
+          "best_epoch": 200,
+          "best_validation_loss": 0.09214737266302109,
+          "validation_metrics": {
+            "r2_u": -0.39332195523744296,
+            "r2_v": -0.33392018894696274,
+            "r2_joint": -0.36362107209220285,
+            "rmse": 0.3035578650937694,
+            "mae": 0.2457938525513332
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "linear_skip_64_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a moderate nonlinear correction."
+          },
+          "parameter_count": 2608,
+          "best_epoch": 200,
+          "best_validation_loss": 0.12579795718193054,
+          "validation_metrics": {
+            "r2_u": -0.246402372609976,
+            "r2_v": -0.09134314201774063,
+            "r2_joint": -0.1688727573138583,
+            "rmse": 0.35468007802545265,
+            "mae": 0.27961507009586045
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "linear_skip_64_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a moderate nonlinear correction."
+          },
+          "parameter_count": 2608,
+          "best_epoch": 200,
+          "best_validation_loss": 0.08949321508407593,
+          "validation_metrics": {
+            "r2_u": -0.25377724826233816,
+            "r2_v": -0.16016651903551837,
+            "r2_joint": -0.20697188364892827,
+            "rmse": 0.29915417361379526,
+            "mae": 0.23089933138582833
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "linear_skip_64_32",
+            "family": "linear_skip",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "none",
+            "residual_blocks": 0,
+            "description": "Direct linear WDF path plus a moderate nonlinear correction."
+          },
+          "parameter_count": 2608,
+          "best_epoch": 200,
+          "best_validation_loss": 0.10763750225305557,
+          "validation_metrics": {
+            "r2_u": -0.24765539477679654,
+            "r2_v": -0.1386909679276207,
+            "r2_joint": -0.19317318135220862,
+            "rmse": 0.3280815544713437,
+            "mae": 0.24644365585372477
+          }
+        }
+      ]
+    },
+    "layernorm_32_32": {
+      "architecture": {
+        "name": "layernorm_32_32",
+        "family": "plain",
+        "hidden_sizes": [
+          32,
+          32
+        ],
+        "normalization": "layernorm",
+        "residual_blocks": 0,
+        "description": "Small MLP with batch-size-independent LayerNorm."
+      },
+      "summary": {
+        "parameter_count": 1474,
+        "mean_r2_joint": -0.13286678293324825,
+        "std_r2_joint": 0.029758218757686576,
+        "minimum_r2_joint": -0.18422340880098276,
+        "maximum_r2_joint": -0.10318303064988033,
+        "mean_rmse": 0.3206119725580591,
+        "std_rmse": 0.0328777190342081
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "layernorm_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Small MLP with batch-size-independent LayerNorm."
+          },
+          "parameter_count": 1474,
+          "best_epoch": 90,
+          "best_validation_loss": 0.1323564499616623,
+          "validation_metrics": {
+            "r2_u": -0.18363688406927725,
+            "r2_v": -0.034626993922119764,
+            "r2_joint": -0.10913193899569851,
+            "rmse": 0.36380825568555675,
+            "mae": 0.2919501626355304
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "layernorm_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Small MLP with batch-size-independent LayerNorm."
+          },
+          "parameter_count": 1474,
+          "best_epoch": 75,
+          "best_validation_loss": 0.07578391581773758,
+          "validation_metrics": {
+            "r2_u": -0.056333546904140164,
+            "r2_v": -0.18524515997237545,
+            "r2_joint": -0.12078935343825781,
+            "rmse": 0.27528878869932305,
+            "mae": 0.2225132491636101
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "layernorm_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Small MLP with batch-size-independent LayerNorm."
+          },
+          "parameter_count": 1474,
+          "best_epoch": 200,
+          "best_validation_loss": 0.1191154271364212,
+          "validation_metrics": {
+            "r2_u": -0.1360946224917432,
+            "r2_v": -0.07027143880801745,
+            "r2_joint": -0.10318303064988033,
+            "rmse": 0.34513103685836116,
+            "mae": 0.2724562803028735
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "layernorm_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Small MLP with batch-size-independent LayerNorm."
+          },
+          "parameter_count": 1474,
+          "best_epoch": 93,
+          "best_validation_loss": 0.08504767715930939,
+          "validation_metrics": {
+            "r2_u": -0.19361257793053643,
+            "r2_v": -0.10039978763230728,
+            "r2_joint": -0.14700618278142186,
+            "rmse": 0.29162933455086687,
+            "mae": 0.22081119445578104
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "layernorm_32_32",
+            "family": "plain",
+            "hidden_sizes": [
+              32,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Small MLP with batch-size-independent LayerNorm."
+          },
+          "parameter_count": 1474,
+          "best_epoch": 107,
+          "best_validation_loss": 0.10706144571304321,
+          "validation_metrics": {
+            "r2_u": -0.2567723130662831,
+            "r2_v": -0.1116745045356824,
+            "r2_joint": -0.18422340880098276,
+            "rmse": 0.3272024469961878,
+            "mae": 0.24827306408676802
+          }
+        }
+      ]
+    },
+    "layernorm_64_32": {
+      "architecture": {
+        "name": "layernorm_64_32",
+        "family": "plain",
+        "hidden_sizes": [
+          64,
+          32
+        ],
+        "normalization": "layernorm",
+        "residual_blocks": 0,
+        "description": "Moderate tapered MLP with LayerNorm."
+      },
+      "summary": {
+        "parameter_count": 2786,
+        "mean_r2_joint": -0.10493572137626024,
+        "std_r2_joint": 0.0499708046926551,
+        "minimum_r2_joint": -0.18647608434607887,
+        "maximum_r2_joint": -0.04776838770233838,
+        "mean_rmse": 0.31596221220151943,
+        "std_rmse": 0.03032918261225292
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "layernorm_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Moderate tapered MLP with LayerNorm."
+          },
+          "parameter_count": 2786,
+          "best_epoch": 30,
+          "best_validation_loss": 0.13144783675670624,
+          "validation_metrics": {
+            "r2_u": -0.15771775697700008,
+            "r2_v": -0.04708958487492021,
+            "r2_joint": -0.10240367092596014,
+            "rmse": 0.3625573429115592,
+            "mae": 0.29107411335685895
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "layernorm_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Moderate tapered MLP with LayerNorm."
+          },
+          "parameter_count": 2786,
+          "best_epoch": 32,
+          "best_validation_loss": 0.07623639702796936,
+          "validation_metrics": {
+            "r2_u": -0.14403483803562844,
+            "r2_v": -0.11216521318957606,
+            "r2_joint": -0.12810002561260225,
+            "rmse": 0.27610939216469216,
+            "mae": 0.22207110149735587
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "layernorm_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Moderate tapered MLP with LayerNorm."
+          },
+          "parameter_count": 2786,
+          "best_epoch": 126,
+          "best_validation_loss": 0.11300443857908249,
+          "validation_metrics": {
+            "r2_u": -0.09229711346547353,
+            "r2_v": -0.00323966193920322,
+            "r2_joint": -0.04776838770233838,
+            "rmse": 0.33616133514287366,
+            "mae": 0.2648041872267289
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "layernorm_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Moderate tapered MLP with LayerNorm."
+          },
+          "parameter_count": 2786,
+          "best_epoch": 20,
+          "best_validation_loss": 0.087981678545475,
+          "validation_metrics": {
+            "r2_u": -0.2565837064474059,
+            "r2_v": -0.11636846224475184,
+            "r2_joint": -0.18647608434607887,
+            "rmse": 0.29661705377568653,
+            "mae": 0.2257446352231388
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "layernorm_64_32",
+            "family": "plain",
+            "hidden_sizes": [
+              64,
+              32
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 0,
+            "description": "Moderate tapered MLP with LayerNorm."
+          },
+          "parameter_count": 2786,
+          "best_epoch": 14,
+          "best_validation_loss": 0.09508955478668213,
+          "validation_metrics": {
+            "r2_u": -0.06615660845454285,
+            "r2_v": -0.05370426813410023,
+            "r2_joint": -0.05993043829432154,
+            "rmse": 0.30836593701278553,
+            "mae": 0.24249842010298794
+          }
+        }
+      ]
+    },
+    "residual_layernorm_64": {
+      "architecture": {
+        "name": "residual_layernorm_64",
+        "family": "residual",
+        "hidden_sizes": [
+          64
+        ],
+        "normalization": "layernorm",
+        "residual_blocks": 2,
+        "description": "Two small residual blocks with LayerNorm."
+      },
+      "summary": {
+        "parameter_count": 17602,
+        "mean_r2_joint": -0.22231463992661665,
+        "std_r2_joint": 0.09777368442788054,
+        "minimum_r2_joint": -0.34893615613731,
+        "maximum_r2_joint": -0.08195308592170292,
+        "mean_rmse": 0.3312795171908696,
+        "std_rmse": 0.027569899862586626
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "residual_layernorm_64",
+            "family": "residual",
+            "hidden_sizes": [
+              64
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 2,
+            "description": "Two small residual blocks with LayerNorm."
+          },
+          "parameter_count": 17602,
+          "best_epoch": 18,
+          "best_validation_loss": 0.13560794293880463,
+          "validation_metrics": {
+            "r2_u": -0.16137614250094834,
+            "r2_v": -0.1164936829187031,
+            "r2_joint": -0.13893491270982572,
+            "rmse": 0.36824982162323794,
+            "mae": 0.2944453137936941
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "residual_layernorm_64",
+            "family": "residual",
+            "hidden_sizes": [
+              64
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 2,
+            "description": "Two small residual blocks with LayerNorm."
+          },
+          "parameter_count": 17602,
+          "best_epoch": 46,
+          "best_validation_loss": 0.08499345928430557,
+          "validation_metrics": {
+            "r2_u": -0.16039347934953874,
+            "r2_v": -0.35322055763480065,
+            "r2_joint": -0.2568070184921697,
+            "rmse": 0.2915363793769619,
+            "mae": 0.23350476169624806
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "residual_layernorm_64",
+            "family": "residual",
+            "hidden_sizes": [
+              64
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 2,
+            "description": "Two small residual blocks with LayerNorm."
+          },
+          "parameter_count": 17602,
+          "best_epoch": 21,
+          "best_validation_loss": 0.11650753766298294,
+          "validation_metrics": {
+            "r2_u": -0.14704720746279842,
+            "r2_v": -0.01685896438060741,
+            "r2_joint": -0.08195308592170292,
+            "rmse": 0.3413319904910173,
+            "mae": 0.2691526291426476
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "residual_layernorm_64",
+            "family": "residual",
+            "hidden_sizes": [
+              64
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 2,
+            "description": "Two small residual blocks with LayerNorm."
+          },
+          "parameter_count": 17602,
+          "best_epoch": 27,
+          "best_validation_loss": 0.09522093832492828,
+          "validation_metrics": {
+            "r2_u": -0.17665173387954902,
+            "r2_v": -0.39323231886460075,
+            "r2_joint": -0.2849420263720749,
+            "rmse": 0.30857890395156873,
+            "mae": 0.23328203942549755
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "residual_layernorm_64",
+            "family": "residual",
+            "hidden_sizes": [
+              64
+            ],
+            "normalization": "layernorm",
+            "residual_blocks": 2,
+            "description": "Two small residual blocks with LayerNorm."
+          },
+          "parameter_count": 17602,
+          "best_epoch": 27,
+          "best_validation_loss": 0.1202012300491333,
+          "validation_metrics": {
+            "r2_u": -0.2916906535320556,
+            "r2_v": -0.4061816587425644,
+            "r2_joint": -0.34893615613731,
+            "rmse": 0.3467004905115622,
+            "mae": 0.26849823756218333
+          }
+        }
+      ]
+    },
+    "legacy_core6_433k": {
+      "architecture": {
+        "name": "legacy_core6_433k",
+        "family": "legacy",
+        "hidden_sizes": [
+          512,
+          512,
+          256,
+          128
+        ],
+        "normalization": "batchnorm",
+        "residual_blocks": 0,
+        "description": "Frozen 433k BatchNorm/Dropout network reference."
+      },
+      "summary": {
+        "parameter_count": 433538,
+        "mean_r2_joint": -0.11131636689985225,
+        "std_r2_joint": 0.06864658214068478,
+        "minimum_r2_joint": -0.22765459246748976,
+        "maximum_r2_joint": -0.011753545716264191,
+        "mean_rmse": 0.3171595953213825,
+        "std_rmse": 0.03121836877183218
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "train_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523180",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234063948940",
+            "300534060523100",
+            "300534060610560"
+          ],
+          "architecture": {
+            "name": "legacy_core6_433k",
+            "family": "legacy",
+            "hidden_sizes": [
+              512,
+              512,
+              256,
+              128
+            ],
+            "normalization": "batchnorm",
+            "residual_blocks": 0,
+            "description": "Frozen 433k BatchNorm/Dropout network reference."
+          },
+          "parameter_count": 433538,
+          "best_epoch": 5,
+          "best_validation_loss": 0.12033446133136749,
+          "validation_metrics": {
+            "r2_u": -0.008547298450501284,
+            "r2_v": -0.014959792982027098,
+            "r2_joint": -0.011753545716264191,
+            "rmse": 0.34689257627716186,
+            "mae": 0.27595421577738916
+          }
+        },
+        {
+          "fold": 2,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234066912840",
+            "300234068761550",
+            "300234068762460",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234068760480",
+            "300534060523030",
+            "300534060615660"
+          ],
+          "architecture": {
+            "name": "legacy_core6_433k",
+            "family": "legacy",
+            "hidden_sizes": [
+              512,
+              512,
+              256,
+              128
+            ],
+            "normalization": "batchnorm",
+            "residual_blocks": 0,
+            "description": "Frozen 433k BatchNorm/Dropout network reference."
+          },
+          "parameter_count": 433538,
+          "best_epoch": 3,
+          "best_validation_loss": 0.07451719045639038,
+          "validation_metrics": {
+            "r2_u": -0.15951999542438622,
+            "r2_v": -0.04642843471651359,
+            "r2_joint": -0.1029742150704499,
+            "rmse": 0.272978379810887,
+            "mae": 0.21928843403879247
+          }
+        },
+        {
+          "fold": 3,
+          "train_ids": [
+            "300234063948940",
+            "300234066410970",
+            "300234066912840",
+            "300234068760480",
+            "300234068761550",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660"
+          ],
+          "validation_ids": [
+            "300234064704760",
+            "300234066310050",
+            "300534061286230"
+          ],
+          "architecture": {
+            "name": "legacy_core6_433k",
+            "family": "legacy",
+            "hidden_sizes": [
+              512,
+              512,
+              256,
+              128
+            ],
+            "normalization": "batchnorm",
+            "residual_blocks": 0,
+            "description": "Frozen 433k BatchNorm/Dropout network reference."
+          },
+          "parameter_count": 433538,
+          "best_epoch": 3,
+          "best_validation_loss": 0.11890251189470291,
+          "validation_metrics": {
+            "r2_u": -0.2326352259035378,
+            "r2_v": 0.014128370456661266,
+            "r2_joint": -0.10925342772343827,
+            "rmse": 0.34482241586503243,
+            "mae": 0.27115112275883696
+          }
+        },
+        {
+          "fold": 4,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066410970",
+            "300234068760480",
+            "300234068761550",
+            "300534060523030",
+            "300534060523100",
+            "300534060610560",
+            "300534060613550",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066912840",
+            "300234068762460",
+            "300534060523180"
+          ],
+          "architecture": {
+            "name": "legacy_core6_433k",
+            "family": "legacy",
+            "hidden_sizes": [
+              512,
+              512,
+              256,
+              128
+            ],
+            "normalization": "batchnorm",
+            "residual_blocks": 0,
+            "description": "Frozen 433k BatchNorm/Dropout network reference."
+          },
+          "parameter_count": 433538,
+          "best_epoch": 13,
+          "best_validation_loss": 0.08192048966884613,
+          "validation_metrics": {
+            "r2_u": -0.1246809133555411,
+            "r2_v": -0.08521119368769714,
+            "r2_joint": -0.10494605352161912,
+            "rmse": 0.2862175689041995,
+            "mae": 0.21508402374530836
+          }
+        },
+        {
+          "fold": 5,
+          "train_ids": [
+            "300234063948940",
+            "300234064704760",
+            "300234066310050",
+            "300234066912840",
+            "300234068760480",
+            "300234068762460",
+            "300534060523030",
+            "300534060523100",
+            "300534060523180",
+            "300534060610560",
+            "300534060615660",
+            "300534061286230"
+          ],
+          "validation_ids": [
+            "300234066410970",
+            "300234068761550",
+            "300534060613550"
+          ],
+          "architecture": {
+            "name": "legacy_core6_433k",
+            "family": "legacy",
+            "hidden_sizes": [
+              512,
+              512,
+              256,
+              128
+            ],
+            "normalization": "batchnorm",
+            "residual_blocks": 0,
+            "description": "Frozen 433k BatchNorm/Dropout network reference."
+          },
+          "parameter_count": 433538,
+          "best_epoch": 1,
+          "best_validation_loss": 0.11214932799339294,
+          "validation_metrics": {
+            "r2_u": -0.3956328116551886,
+            "r2_v": -0.05967637327979092,
+            "r2_joint": -0.22765459246748976,
+            "rmse": 0.3348870357496316,
+            "mae": 0.26297692989573884
+          }
+        }
+      ]
+    }
+  },
+  "fixed_validation_finalists": [
+    "plain_64_32",
+    "plain_32_32"
+  ],
+  "fixed_validation_ranking": [
+    "plain_64_32",
+    "plain_32_32"
+  ],
+  "fixed_validation_results": {
+    "plain_64_32": {
+      "architecture": {
+        "name": "plain_64_32",
+        "family": "plain",
+        "hidden_sizes": [
+          64,
+          32
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Moderate tapered ReLU MLP without normalization."
+      },
+      "parameter_count": 2594,
+      "best_epoch": 14,
+      "best_validation_loss": 0.12307727336883545,
+      "validation_metrics": {
+        "r2_u": 0.0606826647012243,
+        "r2_v": 0.05399332682992042,
+        "r2_joint": 0.05733799576557236,
+        "rmse": 0.3508237074186378,
+        "mae": 0.27125386630453246
+      },
+      "checkpoint": "trained_models/wdf_cms_core6_network_redesign_v1/finalists/plain_64_32/best_mlp.pth",
+      "checkpoint_sha256": "99dcca333513c721fd76c6415264b7e8534b6019fda9c915a48b20e6a03477c3",
+      "scaler": "trained_models/wdf_cms_core6_network_redesign_v1/finalists/plain_64_32/x_scaler.pkl",
+      "scaler_sha256": "68dc7f832bc8befd34b26e2184083d8e4bcf919dc3a12f5af02c13ca9a52e1ca"
+    },
+    "plain_32_32": {
+      "architecture": {
+        "name": "plain_32_32",
+        "family": "plain",
+        "hidden_sizes": [
+          32,
+          32
+        ],
+        "normalization": "none",
+        "residual_blocks": 0,
+        "description": "Small two-layer ReLU MLP without normalization."
+      },
+      "parameter_count": 1346,
+      "best_epoch": 10,
+      "best_validation_loss": 0.13487747311592102,
+      "validation_metrics": {
+        "r2_u": -0.03710948174889528,
+        "r2_v": -0.029321537713460577,
+        "r2_joint": -0.03321550973117793,
+        "rmse": 0.36725667196934875,
+        "mae": 0.2833950338593938
+      },
+      "checkpoint": "trained_models/wdf_cms_core6_network_redesign_v1/finalists/plain_32_32/best_mlp.pth",
+      "checkpoint_sha256": "9e83417150c19dae6a723e2a5544051c7451f364b077449f98e6c73f724a7d93",
+      "scaler": "trained_models/wdf_cms_core6_network_redesign_v1/finalists/plain_32_32/x_scaler.pkl",
+      "scaler_sha256": "68dc7f832bc8befd34b26e2184083d8e4bcf919dc3a12f5af02c13ca9a52e1ca"
+    }
+  },
+  "selected_architecture": "plain_64_32",
+  "selected_checkpoint": "trained_models/wdf_cms_core6_network_redesign_v1/selected/best_mlp.pth",
+  "selected_checkpoint_sha256": "99dcca333513c721fd76c6415264b7e8534b6019fda9c915a48b20e6a03477c3",
+  "selected_scaler": "trained_models/wdf_cms_core6_network_redesign_v1/selected/x_scaler.pkl",
+  "selected_scaler_sha256": "68dc7f832bc8befd34b26e2184083d8e4bcf919dc3a12f5af02c13ca9a52e1ca"
+}

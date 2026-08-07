@@ -1,0 +1,418 @@
+{
+  "schema_version": 1,
+  "model_version": "wdf_cms_network_redesign_v1",
+  "created_at_utc": "2026-08-07T05:29:48.622785+00:00",
+  "scientific_status": "frozen_experimental_cms_architecture_redesign_not_selected",
+  "deployment_status": "candidate_pending_windows_validation",
+  "activation_recommendation": "do_not_activate",
+  "freeze_code_git_commit": "3a600767d60fc106f87f41a4060400136ec067f1",
+  "selection_code_git_commit": "3f8edb03753652c6ba0300f17be7efb97d9b8c3b",
+  "test_evaluation_code_git_commit": "5f752d4b486a354bf1585662f31fff59f10a0dd8",
+  "selected_architecture": "plain_64_32",
+  "selected_architecture_spec": {
+    "name": "plain_64_32",
+    "family": "plain",
+    "hidden_sizes": [
+      64,
+      32
+    ],
+    "normalization": "none",
+    "residual_blocks": 0,
+    "description": "Moderate tapered ReLU MLP without normalization."
+  },
+  "selected_parameter_count": 2594,
+  "training_contract": {
+    "features": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ],
+    "target": {
+      "residual_u": "ve - cfsv2_u",
+      "residual_v": "vn - cfsv2_v"
+    },
+    "loss": "MSELoss",
+    "batch_size": 8192,
+    "max_epochs": 200,
+    "early_stopping_patience": 20,
+    "checkpoint_monitor": "validation_loss",
+    "optimizer": "AdamW",
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+    "minimum_learning_rate": 1e-06,
+    "random_seed": 42,
+    "input_scaler": "StandardScaler fit on each training fold only",
+    "forbidden_changes": [
+      "fixed 0.03 correction",
+      "regional target correction",
+      "LSTM or sequence model",
+      "new features",
+      "automatic hyperparameter search",
+      "subregion-specific models",
+      "ensemble deployment"
+    ]
+  },
+  "selection": {
+    "method": "5-fold original_ID GroupKFold on fixed train IDs; top two evaluated on fixed validation IDs",
+    "cv_ranking": [
+      "plain_64_32",
+      "plain_32_32",
+      "plain_16_16",
+      "layernorm_64_32",
+      "legacy_core6_433k",
+      "layernorm_32_32",
+      "linear_skip_64_32",
+      "residual_layernorm_64",
+      "linear_skip_32_32",
+      "linear_core6"
+    ],
+    "fixed_validation_ranking": [
+      "plain_64_32",
+      "plain_32_32"
+    ],
+    "selected_validation_metrics": {
+      "r2_u": 0.0606826647012243,
+      "r2_v": 0.05399332682992042,
+      "r2_joint": 0.05733799576557236,
+      "rmse": 0.3508237074186378,
+      "mae": 0.27125386630453246
+    },
+    "selection_lock_sha256": "91b8f8d45015ee075e5550ea1e85c0425164a475a4823322c0383a3f61051c0d"
+  },
+  "test_evaluation": {
+    "schema_version": 1,
+    "created_at_utc": "2026-08-07T05:25:08.827474+00:00",
+    "study": "wdf_cms_core6_network_redesign_v1",
+    "evaluation_code_git_commit": "5f752d4b486a354bf1585662f31fff59f10a0dd8",
+    "test_status": "evaluated_once_locked",
+    "selection_lock_sha256": "91b8f8d45015ee075e5550ea1e85c0425164a475a4823322c0383a3f61051c0d",
+    "selected_architecture": "plain_64_32",
+    "selected_parameter_count": 2594,
+    "test_original_ids": [
+      "300234063946920",
+      "300234066613930",
+      "300234066911830",
+      "300534060522280"
+    ],
+    "subsets": {
+      "CMS_overall": {
+        "n_samples": 2927,
+        "n_original_ids": 4,
+        "selected_network": {
+          "status": "ok",
+          "r2_u": 0.07517540277329038,
+          "r2_v": 0.020769874575164105,
+          "r2_joint": 0.04797263867422724,
+          "rmse": 0.3689087988215207,
+          "mae": 0.2787313710980297,
+          "bias_u": 0.05493475895561777,
+          "bias_v": -0.07102430014312738
+        },
+        "frozen_global": {
+          "status": "ok",
+          "r2_u": 0.11986026934167204,
+          "r2_v": 0.14978840060863996,
+          "r2_joint": 0.134824334975156,
+          "rmse": 0.3523829286722916,
+          "mae": 0.263393138127283,
+          "bias_u": -0.005401366019149407,
+          "bias_v": -0.07041129747912285
+        }
+      },
+      "Bohai_Yellow_Sea": {
+        "n_samples": 0,
+        "n_original_ids": 0,
+        "selected_network": {
+          "status": "no_samples",
+          "r2_u": null,
+          "r2_v": null,
+          "r2_joint": null,
+          "rmse": null,
+          "mae": null,
+          "bias_u": null,
+          "bias_v": null
+        },
+        "frozen_global": {
+          "status": "no_samples",
+          "r2_u": null,
+          "r2_v": null,
+          "r2_joint": null,
+          "rmse": null,
+          "mae": null,
+          "bias_u": null,
+          "bias_v": null
+        }
+      },
+      "East_China_Sea": {
+        "n_samples": 1869,
+        "n_original_ids": 4,
+        "selected_network": {
+          "status": "ok",
+          "r2_u": 0.10309772848920395,
+          "r2_v": -0.06491956435910451,
+          "r2_joint": 0.019089082065049723,
+          "rmse": 0.35385349652269127,
+          "mae": 0.2663481891713366,
+          "bias_u": -0.02027464553410474,
+          "bias_v": -0.1264424257453197
+        },
+        "frozen_global": {
+          "status": "ok",
+          "r2_u": 0.061862236670524484,
+          "r2_v": 0.09661560401759905,
+          "r2_joint": 0.07923892034406177,
+          "rmse": 0.3429617648592162,
+          "mae": 0.2564051355664467,
+          "bias_u": -0.07653451379402165,
+          "bias_v": -0.1106159728411486
+        }
+      },
+      "Northern_South_China_Sea": {
+        "n_samples": 1058,
+        "n_original_ids": 2,
+        "selected_network": {
+          "status": "ok",
+          "r2_u": -0.16430277755089095,
+          "r2_v": 0.07124090500778824,
+          "r2_joint": -0.04653093627155136,
+          "rmse": 0.39410169469234063,
+          "mae": 0.30060676525775504,
+          "bias_u": 0.18779522870163987,
+          "bias_v": 0.026874071076624404
+        },
+        "frozen_global": {
+          "status": "ok",
+          "r2_u": 0.006837290386083605,
+          "r2_v": 0.15548854129925138,
+          "r2_joint": 0.0811629158426675,
+          "rmse": 0.3684375916071342,
+          "mae": 0.2757377286624465,
+          "bias_u": 0.12025823056992074,
+          "bias_v": 0.0006118955753441827
+        }
+      }
+    },
+    "references": {
+      "original_cms_mlp": {
+        "r2_u": -0.05629037607771381,
+        "r2_v": -0.07626096254252612,
+        "r2_joint": -0.06627566931011997,
+        "rmse": 0.39074473845004226,
+        "mae": 0.2991081491888142
+      },
+      "regional_linear": {
+        "r2_u": 0.02430153726708406,
+        "r2_v": -0.0015580334693598985,
+        "r2_joint": 0.011371751898862081,
+        "rmse": 0.37618766455675207,
+        "mae": 0.28095429658435295
+      },
+      "frozen_global_same_rows": {
+        "status": "ok",
+        "r2_u": 0.11986026934167204,
+        "r2_v": 0.14978840060863996,
+        "r2_joint": 0.134824334975156,
+        "rmse": 0.3523829286722916,
+        "mae": 0.263393138127283,
+        "bias_u": -0.005401366019149407,
+        "bias_v": -0.07041129747912285
+      }
+    },
+    "comparisons": {
+      "selected_minus_original_cms_joint_r2": 0.11424830798434721,
+      "selected_minus_original_cms_rmse": -0.02183593962852154,
+      "selected_minus_linear_joint_r2": 0.03660088677536516,
+      "selected_minus_linear_rmse": -0.0072788657352313435,
+      "selected_minus_frozen_global_joint_r2": -0.08685169630092876,
+      "selected_minus_frozen_global_rmse": 0.016525870149229127
+    },
+    "recommendation": "do_not_replace_frozen_global"
+  },
+  "selection_assessment": {
+    "beats_original_cms_mlp": true,
+    "beats_regional_linear": true,
+    "beats_frozen_global_same_rows": false,
+    "activation_recommendation": "do_not_activate",
+    "reason": "The redesigned regional MLP improves the original CMS MLP and regional linear baseline, but underperforms the frozen global MLP on the identical test rows."
+  },
+  "regional_scope": {
+    "name": "China Marginal Seas",
+    "expression": "BYS OR ECS OR NSCS",
+    "dataset": {
+      "n_original_ids": 23,
+      "n_samples": 21074,
+      "n_source_segments": 24,
+      "n_hourly_episodes": 46
+    },
+    "region_membership_counts": {
+      "BYS": 0,
+      "ECS": 13956,
+      "NSCS": 7118,
+      "BYS_ECS_overlap": 0,
+      "BYS_NSCS_overlap": 0,
+      "ECS_NSCS_overlap": 0,
+      "all_three_overlap": 0
+    },
+    "month_counts": {
+      "1": 4153,
+      "2": 2598,
+      "3": 2961,
+      "4": 786,
+      "5": 2075,
+      "6": 720,
+      "7": 1405,
+      "8": 2491,
+      "9": 1585,
+      "10": 285,
+      "11": 617,
+      "12": 1398
+    },
+    "observed_support_limitation": "BYS has zero rows in the supplied source dataset."
+  },
+  "split_method": "regenerated_group_shuffle_split",
+  "split_random_seed": 42,
+  "split_counts": {
+    "train": {
+      "n_original_ids": 15,
+      "n_segments": 29,
+      "n_samples": 14173
+    },
+    "val": {
+      "n_original_ids": 4,
+      "n_segments": 7,
+      "n_samples": 3974
+    },
+    "test": {
+      "n_original_ids": 4,
+      "n_segments": 10,
+      "n_samples": 2927
+    }
+  },
+  "pairwise_original_id_intersections": {
+    "train_val": 0,
+    "train_test": 0,
+    "val_test": 0
+  },
+  "dataset": {
+    "filename": "trajectories_cms_circular_mwd_v2.pkl",
+    "size_bytes": 3036690,
+    "sha256": "9b52855d233076fc39dfdc4079805d37d42208ad6c3590bd01f8db4f23ab3fe0",
+    "diagnostics_filename": "trajectories_cms_circular_mwd_v2_diagnostics.json",
+    "diagnostics_sha256": "9b6f4118f8c7f71d2615336d543d4696ed037217a71275d6375d474f7e184648"
+  },
+  "onnx": {
+    "filename": "wdf_cms_orig_core6_v1.onnx",
+    "compatibility_alias": "wdf_drifter.onnx",
+    "sha256": "b79afcbf0f70add4ec6dfdf4f3299e69254e40c03a343c10171d1b1b44d09ff5",
+    "compatibility_alias_sha256": "b79afcbf0f70add4ec6dfdf4f3299e69254e40c03a343c10171d1b1b44d09ff5",
+    "opset": 12,
+    "input_name": "input",
+    "output_name": "output",
+    "scaler_inside_graph": true,
+    "metadata_properties": {
+      "model_version": "wdf_cms_network_redesign_v1",
+      "training_run": "trained_models/wdf_cms_core6_network_redesign_v1",
+      "feature_columns": "[\"era5_u10\",\"era5_v10\",\"era5_swh\",\"era5_mwp\",\"era5_wave_dir_sin\",\"era5_wave_dir_cos\"]",
+      "target_columns": "[\"residual_u\",\"residual_v\"]",
+      "target_definition": "residual_u=ve-cfsv2_u;residual_v=vn-cfsv2_v",
+      "scaler_inside_graph": "true",
+      "wave_direction_convention": "{\"source\":\"ERA5 mean_wave_direction\",\"meaning\":\"coming-from\",\"zero_direction\":\"north\",\"positive_rotation\":\"clockwise\",\"add_180_degrees\":false,\"sin_definition\":\"sin(deg2rad(mwd))\",\"cos_definition\":\"cos(deg2rad(mwd))\"}"
+    }
+  },
+  "verification": {
+    "reference_batch_size": 3,
+    "max_absolute_difference": 1.4901161193847656e-08,
+    "mean_absolute_difference": 1.1175870895385742e-08,
+    "acceptance_threshold": 1e-05,
+    "dynamic_batch_sizes_passed": [
+      1,
+      3,
+      17
+    ],
+    "input_dtype": "tensor(float)",
+    "output_dtype": "tensor(float)"
+  },
+  "frozen_contract_check": {
+    "schema_version": 1,
+    "changed_surface": "MLP architecture only",
+    "selected_architecture": "plain_64_32",
+    "checks": {
+      "feature_order_unchanged": true,
+      "target_definition_unchanged": true,
+      "input_name_unchanged": true,
+      "output_name_unchanged": true,
+      "input_width_unchanged": true,
+      "output_width_unchanged": true,
+      "float32_interface_unchanged": true,
+      "scaler_inside_onnx": true,
+      "fortran_sources_unchanged": true
+    },
+    "all_passed": true
+  },
+  "scaler": {
+    "n_features_in": 6,
+    "n_samples_seen": 14173,
+    "mean": [
+      -3.142710430798566,
+      -1.7156767634647094,
+      1.708874081813363,
+      6.731898154063795,
+      0.6134538435081016,
+      0.15617039580272382
+    ],
+    "scale": [
+      4.4197929749026565,
+      5.399122659549866,
+      0.8547702127294861,
+      1.113471276975637,
+      0.4485682280713201,
+      0.6309292626148307
+    ]
+  },
+  "source_hashes": {
+    "architecture_cv_results.json": "2f97829725149c2ef1c3ad9ecf5f160acfe4352fa8e7965511c1b53041779dc6",
+    "best_mlp.pth": "99dcca333513c721fd76c6415264b7e8534b6019fda9c915a48b20e6a03477c3",
+    "build_wrapper.bat": "956534f9acc58fc71b01acfb6619612df0233c1da50074867f66a9cdec08e61f",
+    "cms_data_statistics.json": "f18e2928bcad90a0bbea76e944582a119139cdced35fa543b73d041e4d98a1a9",
+    "cms_region_mask.json": "d85a556fc21a7e311f2a4e435939b86e887085c9f8fbc4f26a38d46cc57f4e5a",
+    "cms_region_row_index.npz": "077858071d8a4e90831ef5f3d06380a4c095f4a46339fd65e1e31cbcccbec1be",
+    "cv_fold_manifest.json": "af069d5c78513e95a427f0feef70de1ce05c858a3b76791a010dc5dc1016a08d",
+    "expected_output.csv": "bf4c1e30b0db57fb8e277cd10138a94c075928ca78d5f66c7ab31ccbee02692f",
+    "frozen_contract_check.json": "350fa5748a76388064e2cad32b0dc395921a8129f7db23cb54aa24f9fb177070",
+    "interface.json": "c9f41138d69be3fe128e0ec0d5838f15572ab7bcda13ef68a4ecfee6be17347a",
+    "linear_baseline_metrics.json": "d5b4d43ca0e017fff1d08dc02a65fae8c89bcfa0284747e9598509bcdbe12f5b",
+    "model_config.json": "c2454f0af565677482b600bd5de1d8615ffc4c90f499b6bf1387df58e8463e33",
+    "onnx_metadata.json": "146bdddac634dc5f6bb3742abd0e9d697cfd84ad61d248a17dbe8c8a0ffd335b",
+    "onnx_wrapper.cpp": "686615615a1a48fd7db5d8ac993e2fa228c478d3ce4fa5d08163c8ace2f0dc1d",
+    "onnx_wrapper.h": "c3f2a64ff01845af245513178ef031613b6ce8e333bd35c35d96aea6482f068a",
+    "original_cms_mlp_metrics.json": "0c146c4a861c577e15d4a0976e261e6f4e5c45b3c6a5e3d3c94a07b41a34f40e",
+    "regional_linear_analysis.json": "298acb9392d1098b7703f4f32c42fa1e2718317be1c6202e3bfbca5ac00af407",
+    "selection_lock.json": "91b8f8d45015ee075e5550ea1e85c0425164a475a4823322c0383a3f61051c0d",
+    "split_manifest.json": "9255d68064350e1181b6bb6b8974dad4400d548479086094e64c6edde9b8fd41",
+    "test_evaluation.json": "bcae25c21f9de09e72b8e60ca39705a5b12b1b46a3b56690305acf16c1b04950",
+    "test_input.csv": "1536a4988944b9d83e5b0f6872302023807358c2fb34ea94a242c426773f5e45",
+    "test_wdf_onnx.f90": "f23d8d450309a9f90624275ec054c04c98b19a34dcc9cdf91fb3c2d47af609e9",
+    "training_history.json": "f14723e976fc12a3076ce1035ed2a3651fc2af02654f8dd1d6751335c67ef559",
+    "trajectories_cms_circular_mwd_v2_diagnostics.json": "9b6f4118f8c7f71d2615336d543d4696ed037217a71275d6375d474f7e184648",
+    "verify_windows.bat": "be111e3fb7ba62828aadc6e06f1d959f28a38d702a940d477a11597f7d621b61",
+    "wdf_model_mod.f90": "60850bf346bcce9b3b04ff182fc689314928c72bf900a2500bca045b3a2c0976",
+    "x_scaler.pkl": "68dc7f832bc8befd34b26e2184083d8e4bcf919dc3a12f5af02c13ca9a52e1ca"
+  },
+  "windows": {
+    "staging_path": "D:\\OilspillModel\\OilSpillModel\\ModelRun\\release_onnx\\wdf_cms_network_redesign_v1",
+    "onnx_active_modified": false,
+    "acceptance_threshold": 1e-05
+  },
+  "software": {
+    "python_environment": "Miniforge3 conda env buoy-drifter",
+    "torch": "2.5.1",
+    "onnx": "1.20.0",
+    "onnxruntime": "1.24.4",
+    "scikit_learn": "1.8.0",
+    "joblib": "1.5.3"
+  }
+}

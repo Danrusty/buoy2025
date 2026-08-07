@@ -1,0 +1,51 @@
+{
+  "study": "wdf_cms_core6_network_redesign_v1",
+  "selected_architecture": {
+    "name": "plain_64_32",
+    "family": "plain",
+    "hidden_sizes": [
+      64,
+      32
+    ],
+    "normalization": "none",
+    "residual_blocks": 0,
+    "description": "Moderate tapered ReLU MLP without normalization."
+  },
+  "parameter_count": 2594,
+  "training_contract": {
+    "features": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ],
+    "target": {
+      "residual_u": "ve - cfsv2_u",
+      "residual_v": "vn - cfsv2_v"
+    },
+    "loss": "MSELoss",
+    "batch_size": 8192,
+    "max_epochs": 200,
+    "early_stopping_patience": 20,
+    "checkpoint_monitor": "validation_loss",
+    "optimizer": "AdamW",
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingWarmRestarts(T_0=60,T_mult=2)",
+    "minimum_learning_rate": 1e-06,
+    "random_seed": 42,
+    "input_scaler": "StandardScaler fit on each training fold only",
+    "forbidden_changes": [
+      "fixed 0.03 correction",
+      "regional target correction",
+      "LSTM or sequence model",
+      "new features",
+      "automatic hyperparameter search",
+      "subregion-specific models",
+      "ensemble deployment"
+    ]
+  },
+  "selection_method": "5-fold original_ID GroupKFold on fixed train IDs; top two evaluated on fixed validation IDs; test IDs sealed"
+}

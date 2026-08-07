@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "changed_surface": "MLP architecture only",
+  "selected_architecture": "plain_64_32",
+  "checks": {
+    "feature_order_unchanged": true,
+    "target_definition_unchanged": true,
+    "input_name_unchanged": true,
+    "output_name_unchanged": true,
+    "input_width_unchanged": true,
+    "output_width_unchanged": true,
+    "float32_interface_unchanged": true,
+    "scaler_inside_onnx": true,
+    "fortran_sources_unchanged": true
+  },
+  "all_passed": true
+}
