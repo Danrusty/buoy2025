@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 
 
-MODELS_DIR = Path(__file__).resolve().parents[1] / "src" / "models"
-sys.path.insert(0, str(MODELS_DIR))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from cms_global_adapter import (  # noqa: E402
+from src.models.adapters.cms_global_adapter import (  # noqa: E402
     ADAPTER_SPECS,
     AdapterData,
     _basis,
@@ -23,7 +23,7 @@ from cms_global_adapter import (  # noqa: E402
     predict_correction,
     trajectory_proxy,
 )
-from run_cms_global_adapter import (  # noqa: E402
+from src.models.adapters.run_cms_global_adapter import (  # noqa: E402
     _confirmation_acceptance,
 )
 

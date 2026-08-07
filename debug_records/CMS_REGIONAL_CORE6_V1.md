@@ -250,3 +250,16 @@ The old release root and `onnx_active` were checked before and after staging;
 both remain at frozen global SHA256
 `787d1d6a663677e30161a70493c70a7e46434414fb59085fbb68477939f18941`.
 Only the new versioned staging directory was created.
+
+## Release retraction
+
+After the scratch CMS MLP and both frozen-global adapter studies failed their
+scientific generalization gates, the repository release directory
+`deployment/releases/wdf_cms_orig_core6_v1` was removed. The historical
+training, metrics and validation records remain under `trained_models/`,
+`results/` and this document, but the model is no longer represented as a
+release candidate.
+
+This retraction does not alter the authoritative frozen-global release or its
+active SHA256. The historical Windows staging copy is outside this repository
+and was not modified by the repository cleanup.

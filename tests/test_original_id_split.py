@@ -12,10 +12,10 @@ import numpy as np
 import pandas as pd
 
 
-MODELS_DIR = Path(__file__).resolve().parents[1] / "src" / "models"
-sys.path.insert(0, str(MODELS_DIR))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from data_loader import (  # noqa: E402
+from src.models.data_loader import (  # noqa: E402
     FEATURE_COLS,
     load_and_split_data,
     validate_predefined_id_splits,
