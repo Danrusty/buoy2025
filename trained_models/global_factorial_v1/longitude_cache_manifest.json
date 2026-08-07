@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "experiment": "global_longitude_supplement_v1",
+  "created_at_utc": "2026-08-07T13:15:55.030803+00:00",
+  "lineage": {
+    "base_data_manifest": "trained_models/global_factorial_v1/data_manifest.json",
+    "base_data_manifest_sha256": "b683aa9f1bc484474db7fc26442000f73a5eef7b5b022e138587539aa63a0653",
+    "source": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
+    "source_sha256": "22ab0a32ff9472a6f8b8f57af5fd96b93cdeb76d45b4ef6b0a798fa1befb937e",
+    "frozen_split_manifest": "trained_models/ablation_circular_mwd_v2_final/core_6/split_manifest.json",
+    "frozen_split_manifest_sha256": "29b2f1c599290fd40c17c05180b1eacc3500a8c07fc83bb4889fe6f6882ff23d"
+  },
+  "row_contract": {
+    "mask": "与 frozen core6 完全相同；longitude 不参与行筛选",
+    "alignment_checks": [
+      "逐轨迹 latitude 与基础缓存完全相等",
+      "逐轨迹 group_index 与基础缓存完全相等",
+      "三集合样本、片段和 original_ID 数量完全相等"
+    ]
+  },
+  "features": {
+    "longitude_source_column": "longitude",
+    "longitude_features": [
+      "sin_longitude",
+      "cos_longitude"
+    ],
+    "sin_formula": "sin(deg2rad(longitude))",
+    "cos_formula": "cos(deg2rad(longitude))",
+    "lat9_order": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos",
+      "sin_latitude",
+      "sin_longitude",
+      "cos_longitude"
+    ]
+  },
+  "observed_longitude_range_degrees": [
+    -180.0,
+    179.99996948242188
+  ],
+  "max_unit_circle_deviation": 8.414063401573912e-08,
+  "split_counts": {
+    "train": {
+      "n_original_ids": 1707,
+      "n_segments": 2900,
+      "n_samples": 11694073
+    },
+    "val": {
+      "n_original_ids": 366,
+      "n_segments": 595,
+      "n_samples": 2614863
+    },
+    "test": {
+      "n_original_ids": 366,
+      "n_segments": 646,
+      "n_samples": 2425415
+    }
+  },
+  "cache_files": {
+    "train": {
+      "sin_longitude": {
+        "path": "processed_data/global_factorial_v1/sin_longitude_train.npy",
+        "shape": [
+          11694073
+        ],
+        "dtype": "float32",
+        "size_bytes": 46776420,
+        "sha256": "682978ad22272ac057f24571b2875bedc7d4cc2e1c5752a61eb62abd68aa2a8b"
+      },
+      "cos_longitude": {
+        "path": "processed_data/global_factorial_v1/cos_longitude_train.npy",
+        "shape": [
+          11694073
+        ],
+        "dtype": "float32",
+        "size_bytes": 46776420,
+        "sha256": "1d29ac67a9af0dd8dc8268b1bc1247aa1c3482938a488c8120115d535d654977"
+      }
+    },
+    "val": {
+      "sin_longitude": {
+        "path": "processed_data/global_factorial_v1/sin_longitude_val.npy",
+        "shape": [
+          2614863
+        ],
+        "dtype": "float32",
+        "size_bytes": 10459580,
+        "sha256": "7e4b5b8144992562789ca7f4fcfb3fab2f371e818a443c13daeab7be8ba99995"
+      },
+      "cos_longitude": {
+        "path": "processed_data/global_factorial_v1/cos_longitude_val.npy",
+        "shape": [
+          2614863
+        ],
+        "dtype": "float32",
+        "size_bytes": 10459580,
+        "sha256": "3deef83549f746f6ee7672d86a54c34e4d45e555ba414ca14d7e8d37a6f8a368"
+      }
+    },
+    "test": {
+      "sin_longitude": {
+        "path": "processed_data/global_factorial_v1/sin_longitude_test.npy",
+        "shape": [
+          2425415
+        ],
+        "dtype": "float32",
+        "size_bytes": 9701788,
+        "sha256": "3c6d645d0152d5c56707f850be068598bef7f28e10030431c06eb03bf77b784a"
+      },
+      "cos_longitude": {
+        "path": "processed_data/global_factorial_v1/cos_longitude_test.npy",
+        "shape": [
+          2425415
+        ],
+        "dtype": "float32",
+        "size_bytes": 9701788,
+        "sha256": "cf9f94e3d9e6d0acc05387be2ba1a86ca6e3a155bc78cc861a98a199e8f65e18"
+      }
+    }
+  }
+}

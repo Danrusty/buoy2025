@@ -130,21 +130,33 @@ def _canonical_original_id(frame: Any, trajectory_index: int) -> str:
     return str(values[0])
 
 
-def _extract_valid_arrays(frame: Any) -> dict[str, np.ndarray]:
-    """严格复用冻结 core6 行筛选，并派生纬度输入。"""
+def frozen_valid_mask(frame: Any) -> Any:
+    """返回冻结 core6 loader 使用的逐行有效性掩码。
+
+    空间特征只能在这个掩码之后派生，不能反过来改变冻结 global
+    train/val/test 中的样本成员关系。
+    """
     frozen_required = list(
         dict.fromkeys(
             CORE6_FEATURES + OBSERVATION_COLUMNS + CURRENT_COLUMNS
         )
     )
-    required = set(frozen_required + [LATITUDE_COLUMN, GROUP_COLUMN])
+    missing = set(frozen_required) - set(frame.columns)
+    if missing:
+        raise ValueError(f"轨迹缺少冻结字段：{sorted(missing)}")
+    return frame[frozen_required].notna().all(axis=1)
+
+
+def _extract_valid_arrays(frame: Any) -> dict[str, np.ndarray]:
+    """严格复用冻结 core6 行筛选，并派生纬度输入。"""
+    required = {LATITUDE_COLUMN, GROUP_COLUMN}
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"trajectory is missing columns: {sorted(missing)}")
 
     # 与冻结 loader 的 frame[frozen_required].dropna() 完全等价。
     # 纬度只在该 mask 之后校验，绝不改变任一集合的样本成员关系。
-    valid = frame[frozen_required].notna().all(axis=1)
+    valid = frozen_valid_mask(frame)
     if not bool(valid.any()):
         return {
             "core6": np.empty((0, len(CORE6_FEATURES)), dtype=np.float32),

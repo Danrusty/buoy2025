@@ -5,7 +5,10 @@
 - `data_loader.py`、`evaluation.py`：共用数据与指标契约；
 - `training/`：global baseline、MLP 训练、消融、ONNX 导出，以及纬度信息 ×
   模型类型析因实验的共用协议；
-- `training/run_global_mlp_lat7.py`：纬度信息 MLP 实验入口；
+- `training/global_mlp_spatial.py`：lat7/lat9 共用的 MLP 训练与冻结协议；
+- `training/global_longitude.py`：在冻结行顺序上追加经度循环编码缓存；
+- `training/run_global_mlp_lat7.py`、`training/run_global_mlp_lat9.py`：
+  两个空间信息 MLP 实验入口；
 - `deployment/`：C++/Fortran wrapper 和 Windows 验证脚本；
 - `legacy/`：已归档的早期 MLP/RNN 探索脚本。
 
