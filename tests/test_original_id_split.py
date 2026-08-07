@@ -15,7 +15,11 @@ import pandas as pd
 MODELS_DIR = Path(__file__).resolve().parents[1] / "src" / "models"
 sys.path.insert(0, str(MODELS_DIR))
 
-from data_loader import FEATURE_COLS, load_and_split_data  # noqa: E402
+from data_loader import (  # noqa: E402
+    FEATURE_COLS,
+    load_and_split_data,
+    validate_predefined_id_splits,
+)
 
 
 CORE_FEATURES = [
@@ -102,6 +106,49 @@ class OriginalIdSplitTest(unittest.TestCase):
             self.assertEqual(core_splits["X_train"].shape[1], 6)
             self.assertEqual(core_splits["feature_cols"], CORE_FEATURES)
             self.assertEqual(core_splits["id_splits"], splits["id_splits"])
+
+    def test_predefined_split_is_used_and_validated(self) -> None:
+        trajectories = [
+            _trajectory(f"buoy-{index:02d}", float(index))
+            for index in range(10)
+        ]
+        predefined = {
+            "train": [f"buoy-{index:02d}" for index in range(6)],
+            "val": ["buoy-06", "buoy-07"],
+            "test": ["buoy-08", "buoy-09"],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            data_path = temp_path / "trajectories.pkl"
+            with data_path.open("wb") as file:
+                pickle.dump(trajectories, file)
+
+            splits = load_and_split_data(
+                filepath=data_path,
+                artifact_dir=temp_path / "artifacts",
+                sample_mode=False,
+                feature_cols=CORE_FEATURES,
+                predefined_id_splits=predefined,
+                split_provenance={"source": "unit-test"},
+            )
+            self.assertEqual(splits["id_splits"], predefined)
+
+            manifest = (
+                temp_path / "artifacts" / "split_manifest.json"
+            ).read_text(encoding="utf-8")
+            self.assertIn('"split_strategy": "predefined_original_id_split"', manifest)
+            self.assertIn('"source": "unit-test"', manifest)
+
+        with self.assertRaisesRegex(ValueError, "完整覆盖"):
+            validate_predefined_id_splits(
+                {
+                    "train": ["buoy-00"],
+                    "val": ["buoy-01"],
+                    "test": ["buoy-02"],
+                },
+                [f"buoy-{index:02d}" for index in range(4)],
+            )
 
 
 if __name__ == "__main__":

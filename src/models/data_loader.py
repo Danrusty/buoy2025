@@ -147,10 +147,12 @@ def _write_manifest(
     id_splits: dict[str, list[str]],
     split_stats: dict[str, dict[str, int]],
     sample_mode: bool,
+    split_strategy: str,
+    split_provenance: dict[str, Any] | None,
 ) -> None:
     source_stat = filepath.stat()
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_file": _portable_path(filepath),
         "source_size_bytes": source_stat.st_size,
@@ -165,6 +167,8 @@ def _write_manifest(
             "test": TEST_RATIO,
         },
         "sample_mode": sample_mode,
+        "split_strategy": split_strategy,
+        "split_provenance": split_provenance,
         "feature_columns": feature_cols,
         "target_columns": TARGET_COLS,
         "splits": {
@@ -181,6 +185,50 @@ def _write_manifest(
     )
 
 
+def validate_predefined_id_splits(
+    predefined_id_splits: dict[str, list[str] | np.ndarray],
+    valid_original_ids: list[str] | np.ndarray,
+) -> dict[str, list[str]]:
+    """验证并规范化外部给定的 train/val/test ``original_ID`` 切分。"""
+    expected_names = {"train", "val", "test"}
+    actual_names = set(predefined_id_splits)
+    if actual_names != expected_names:
+        raise ValueError(
+            "预定义切分必须且只能包含 train/val/test，"
+            f"实际为: {sorted(actual_names)}"
+        )
+
+    normalized: dict[str, list[str]] = {}
+    for name in ("train", "val", "test"):
+        raw_ids = [str(value).strip() for value in predefined_id_splits[name]]
+        if any(not value for value in raw_ids):
+            raise ValueError(f"{name} 切分包含空 original_ID。")
+        if len(raw_ids) != len(set(raw_ids)):
+            raise ValueError(f"{name} 切分包含重复 original_ID。")
+        if not raw_ids:
+            raise ValueError(f"{name} 切分不能为空。")
+        normalized[name] = sorted(raw_ids)
+
+    id_sets = {name: set(ids) for name, ids in normalized.items()}
+    if (
+        id_sets["train"] & id_sets["val"]
+        or id_sets["train"] & id_sets["test"]
+        or id_sets["val"] & id_sets["test"]
+    ):
+        raise ValueError("预定义切分的 original_ID 存在交集。")
+
+    expected_ids = set(map(str, valid_original_ids))
+    assigned_ids = set.union(*id_sets.values())
+    missing_ids = sorted(expected_ids - assigned_ids)
+    unexpected_ids = sorted(assigned_ids - expected_ids)
+    if missing_ids or unexpected_ids:
+        raise ValueError(
+            "预定义切分必须完整覆盖有效 original_ID；"
+            f"缺少 {missing_ids[:5]}，多出 {unexpected_ids[:5]}。"
+        )
+    return normalized
+
+
 def load_and_split_data(
     filepath: str | Path = DATA_PATH,
     random_seed: int = RANDOM_SEED,
@@ -189,6 +237,8 @@ def load_and_split_data(
     artifact_dir: str | Path | None = None,
     save_artifacts: bool = True,
     feature_cols: list[str] | tuple[str, ...] | None = None,
+    predefined_id_splits: dict[str, list[str] | np.ndarray] | None = None,
+    split_provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     加载数据，按 original_ID 切分，计算目标并标准化特征。
@@ -294,7 +344,18 @@ def load_and_split_data(
         raise ValueError("没有有效轨迹，请检查数据列名和缺测值。")
 
     valid_original_ids = sorted({original_id for original_id, _ in valid_trajs})
-    id_splits = split_original_ids(valid_original_ids, random_seed=random_seed)
+    if predefined_id_splits is None:
+        id_splits = split_original_ids(
+            valid_original_ids,
+            random_seed=random_seed,
+        )
+        split_strategy = "generated_original_id_split"
+    else:
+        id_splits = validate_predefined_id_splits(
+            predefined_id_splits,
+            valid_original_ids,
+        )
+        split_strategy = "predefined_original_id_split"
     id_sets = {name: set(ids) for name, ids in id_splits.items()}
 
     logger.info(
@@ -381,6 +442,8 @@ def load_and_split_data(
             id_splits,
             split_stats,
             sample_mode,
+            split_strategy,
+            split_provenance,
         )
         logger.info("StandardScaler 已保存: %s", scaler_path)
         logger.info("切分清单已保存: %s", manifest_path)

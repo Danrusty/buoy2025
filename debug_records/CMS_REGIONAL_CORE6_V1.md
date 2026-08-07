@@ -1,0 +1,165 @@
+# CMS Regional Core6 v1
+
+## Baseline identity
+
+- Repository baseline: `master` at
+  `f2a01709c8cac05f580341df70b477a633614aae`
+- Frozen archive tag: `archive/wdf-core6-circular-mwd-v2`
+- Development branch: `wdf_cms_regional_core6_v1`
+- Frozen global release: `wdf_core6_circular_mwd_v2`
+- New model version: `wdf_cms_orig_core6_v1`
+- Python distribution/environment: Miniforge3 / `buoy-drifter`
+
+The frozen global ONNX has already passed Python, C++, Fortran and Windows
+numerical validation. This regional experiment does not reinterpret that
+engineering validation as evidence of trajectory-level scientific benefit.
+
+## What the old framework established
+
+The global circular-v2 experiment established a reliable six-feature deployment
+contract and a leakage-free physical-buoy split:
+
+- target:
+  `residual_u = ve - cfsv2_u`,
+  `residual_v = vn - cfsv2_v`
+- input:
+  `era5_u10, era5_v10, era5_swh, era5_mwp,`
+  `era5_wave_dir_sin, era5_wave_dir_cos`
+- scaler inside ONNX
+- dynamic batch ONNX interface `(N, 6) -> (N, 2)`
+- `original_ID` train/validation/test separation
+- circular `coming-from` ERA5 mean-wave-direction convention
+
+The global core6 test result was joint R2 `0.127398` and RMSE
+`0.194682 m/s`. The corresponding linear baseline was joint R2 `0.122317`
+and RMSE `0.195250 m/s`. Thus the MLP exceeded the linear baseline by only
+`0.005081` joint R2 and `0.29%` RMSE.
+
+## Problems not resolved by the old framework
+
+1. **Engineering acceptance did not imply trajectory improvement.**
+   The ONNX and language bindings were numerically correct, but the actual
+   Fortran oil-spill trajectories improved only weakly.
+
+2. **The scientific objective and acceptance metric were at different
+   levels.** Training and model selection used row-weighted hourly velocity
+   loss/R2. The operational question concerns accumulated trajectory
+   displacement, direction, landfall and separation over time.
+
+3. **Global geographic mixing can average regional wind response.**
+   The frozen global linear map has effective WDF about `0.01367`, with small
+   global off-diagonal terms. A single global loss can weaken or cancel
+   directionally distinct regional responses even when the deployment chain is
+   correct.
+
+4. **Hourly rows are not independent scientific replicates.**
+   The global dataset contains millions of highly correlated points from
+   2,439 physical IDs. Splitting by ID prevents direct leakage, but the loss and
+   reported metrics still weight long records more heavily.
+
+5. **The global held-out result does not diagnose operational distribution
+   shift.** Sanchi and A Symphony occupy a small geographic and environmental
+   part of the global support.
+
+6. **The old baseline's `wdf_offdiag` was only the mean of the two
+   off-diagonal entries.** The regional analysis additionally reports the
+   physically interpretable rotational cross-wind coefficient
+   `(A[1,0] - A[0,1]) / 2`, while retaining the full matrix.
+
+These are reasons for a controlled regional data experiment, not permission to
+change the frozen target, model, features or deployment contract.
+
+## CMS mask and source decision
+
+CMS is the row-level union of three inclusive rectangles:
+
+- BYS: 31–41 N, 117–127 E
+- ECS: 23–33 N, 117–131 E
+- NSCS: 15–23 N, 105–122 E
+
+The geographic mask is computed from the requested
+`trajectories_with_all_features.pkl`. The selected rows are taken at identical
+positions from
+`trajectories_with_all_features_circular_mwd_v2.pkl`, because the latter is the
+actual frozen global-v2 feature source.
+
+On all 21,074 CMS rows, the two files have identical ID, time, location,
+target/current, wind, SWH and MWP values. Their wave-direction `sin/cos` values
+differ on every CMS row. Training directly from the v1 wave-direction values
+would therefore change both geography and wave preprocessing, violating the
+"only change training-data range" control.
+
+Rows are retained only while they are inside the CMS union. An `original_ID`
+entering CMS does not admit its out-of-region rows. Selected rows are separated
+into continuous hourly episodes for provenance, while the MLP remains
+stateless. IDs with fewer than 24 total CMS hourly rows are excluded.
+
+Rectangle memberships are stored as independent booleans. CMS union rows are
+deduplicated; a geometrically overlapping row may be included in both stated
+subregion reports.
+
+## Pre-training data audit
+
+Strict masking of the supplied source gives:
+
+- 23 unique `original_ID`
+- 21,074 hourly rows
+- 46 continuous in-region episodes from 24 source segments
+- BYS: 0 rows
+- ECS: 13,956 rows
+- NSCS: 7,118 rows
+- no missing values in the target or six frozen features
+- all 23 IDs already exceed the 24-hour minimum
+
+Inheriting the frozen global manifest would yield 19/2/2 train/validation/test
+IDs. Because validation and test would each contain only two physical IDs, the
+pipeline follows the specified fallback: two-stage
+`GroupShuffleSplit`, seed 42, with zero ID intersection.
+
+The zero-row BYS result is a source-data limitation, not a mask failure. The
+model can still be trained under the exact CMS definition, but its observed
+support is ECS + NSCS and BYS metrics must remain unavailable.
+
+## Frozen controls
+
+The pipeline enforces equality with the frozen global `model_config.json` for:
+
+- network architecture, BatchNorm and dropout
+- loss-monitor/early-stopping behavior
+- batch size and maximum epochs
+- optimizer, weight decay and learning-rate scheduler
+- feature and target order
+- random seed
+
+It does not implement fixed `0.03` correction, regional target correction,
+sequence models, new features, hyperparameter search or separate subregion
+models.
+
+## Planned artifacts and gates
+
+Training artifacts are written under:
+
+`trained_models/wdf_cms_orig_core6_v1`
+
+Analysis results are written under:
+
+`results/wdf_cms_orig_core6_v1`
+
+The Windows release is written under:
+
+`deployment/releases/wdf_cms_orig_core6_v1`
+
+Required gates:
+
+1. unit tests for row masking, thresholding and ID split;
+2. zero pairwise ID intersection;
+3. exact frozen-contract comparison;
+4. regional linear analysis and global reference;
+5. regional/global MLP evaluation on identical CMS test rows;
+6. overall/ECS/NSCS test metrics and explicit no-sample BYS status;
+7. ONNX checker, dynamic batches and PyTorch/ONNX numerical consistency;
+8. authoritative ONNX SHA256 and fixed input/output vectors;
+9. unchanged C++/Fortran wrapper validation on Windows.
+
+Formal training results and Windows acceptance details are appended only after
+their corresponding gates pass.

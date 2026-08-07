@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_VERSION = "wdf_core6_original_id_v1"
 DEFAULT_RUN_NAME = "ablation_study/core_6"
+DEFAULT_ONNX_FILENAME = "wdf_drifter.onnx"
 OPSET_VERSION = 12
 INPUT_NAME = "input"
 OUTPUT_NAME = "output"
@@ -180,6 +181,35 @@ def _export_model(
     onnx.checker.check_model(onnx_model)
 
 
+def _write_onnx_metadata(
+    onnx_path: Path,
+    *,
+    model_version: str,
+    feature_cols: list[str],
+    training_run: str,
+) -> dict[str, str]:
+    """把版本、特征和 target 契约写入 ONNX custom metadata。"""
+    metadata = {
+        "model_version": model_version,
+        "training_run": training_run,
+        "feature_columns": json.dumps(feature_cols, separators=(",", ":")),
+        "target_columns": json.dumps(TARGET_COLS, separators=(",", ":")),
+        "target_definition": (
+            "residual_u=ve-cfsv2_u;residual_v=vn-cfsv2_v"
+        ),
+        "scaler_inside_graph": "true",
+        "wave_direction_convention": json.dumps(
+            WAVE_DIRECTION_CONVENTION,
+            separators=(",", ":"),
+        ),
+    }
+    model = onnx.load(onnx_path)
+    onnx.helper.set_model_props(model, metadata)
+    onnx.save(model, onnx_path)
+    onnx.checker.check_model(onnx.load(onnx_path))
+    return metadata
+
+
 def _verify_model(
     model: DeploymentNet,
     onnx_path: Path,
@@ -312,7 +342,15 @@ def _write_readme(
     verification: dict[str, Any],
     feature_cols: list[str],
     model_version: str,
+    onnx_filename: str,
+    compatibility_alias: str | None,
 ) -> None:
+    alias_line = (
+        f"- `{compatibility_alias}`: byte-identical compatibility alias used "
+        "by the unchanged Fortran verification program.\n"
+        if compatibility_alias is not None
+        else ""
+    )
     path.write_text(
         f"""# WDF ONNX Windows Handoff
 
@@ -340,8 +378,8 @@ def _write_readme(
 
 ## Files
 
-- `wdf_drifter.onnx`: Windows runtime model.
-- `interface.json`: authoritative feature/output contract.
+- `{onnx_filename}`: authoritative Windows runtime model.
+{alias_line}- `interface.json`: authoritative feature/output contract.
 - `test_input.csv`: fixed raw physical input vectors.
 - `expected_output.csv`: Python ONNX Runtime reference output.
 - `release_manifest.json`: source model, split and metric provenance.
@@ -383,7 +421,25 @@ def build_release(
     model_version: str = DEFAULT_MODEL_VERSION,
     data_diagnostics_path: Path | None = None,
     training_commit: str | None = None,
+    onnx_filename: str = DEFAULT_ONNX_FILENAME,
+    compatibility_alias: str | None = None,
 ) -> dict[str, Any]:
+    if (
+        not onnx_filename
+        or Path(onnx_filename).name != onnx_filename
+        or not onnx_filename.lower().endswith(".onnx")
+    ):
+        raise ValueError(f"ONNX 文件名必须是单级 .onnx 文件名: {onnx_filename!r}")
+    if compatibility_alias is not None:
+        if (
+            Path(compatibility_alias).name != compatibility_alias
+            or not compatibility_alias.lower().endswith(".onnx")
+            or compatibility_alias == onnx_filename
+        ):
+            raise ValueError(
+                "compatibility_alias 必须是与主文件不同的单级 .onnx 文件名。"
+            )
+
     checkpoint_path = run_dir / "best_mlp.pth"
     scaler_path = run_dir / "x_scaler.pkl"
     split_manifest_path = run_dir / "split_manifest.json"
@@ -416,7 +472,7 @@ def build_release(
     release_dir.mkdir(parents=True, exist_ok=True)
     # 重新导出会改变发布物，因此旧的外部 Windows 验收记录自动失效。
     (release_dir / "WINDOWS_VALIDATION.md").unlink(missing_ok=True)
-    onnx_path = release_dir / "wdf_drifter.onnx"
+    onnx_path = release_dir / onnx_filename
 
     model, scaler = _load_deployment_model(
         checkpoint_path,
@@ -424,7 +480,15 @@ def build_release(
         feature_cols,
     )
     _export_model(model, onnx_path, feature_cols)
+    onnx_metadata = _write_onnx_metadata(
+        onnx_path,
+        model_version=model_version,
+        feature_cols=feature_cols,
+        training_run=str(run_dir.resolve().relative_to(PROJECT_ROOT)),
+    )
     onnx_output, verification = _verify_model(model, onnx_path, feature_cols)
+    if compatibility_alias is not None:
+        shutil.copy2(onnx_path, release_dir / compatibility_alias)
 
     _write_csv(release_dir / "test_input.csv", feature_cols, REFERENCE_INPUTS)
     _write_csv(release_dir / "expected_output.csv", TARGET_COLS, onnx_output)
@@ -458,7 +522,10 @@ def build_release(
         file_integrity = diagnostics["file_integrity"]
         direction_convention = diagnostics["direction_convention"]
         dataset_path = Path(processing["output_file"]).resolve()
-        split_source_path = Path(split_manifest["source_file"]).resolve()
+        split_source_path = Path(split_manifest["source_file"])
+        if not split_source_path.is_absolute():
+            split_source_path = PROJECT_ROOT / split_source_path
+        split_source_path = split_source_path.resolve()
         if dataset_path != split_source_path:
             raise ValueError(
                 "诊断文件的数据集与训练 split manifest 不一致: "
@@ -509,11 +576,13 @@ def build_release(
         "metrics": metrics,
         "onnx": {
             "filename": onnx_path.name,
+            "compatibility_alias": compatibility_alias,
             "opset": OPSET_VERSION,
             "input_name": INPUT_NAME,
             "output_name": OUTPUT_NAME,
             "scaler_inside_graph": True,
             "feature_count": len(feature_cols),
+            "metadata_properties": onnx_metadata,
         },
         "verification": verification,
         "source_hashes": {
@@ -546,6 +615,8 @@ def build_release(
         verification,
         feature_cols,
         model_version,
+        onnx_filename,
+        compatibility_alias,
     )
     _write_checksums(release_dir)
     return manifest
@@ -575,6 +646,16 @@ def main() -> None:
         default=None,
         help="训练时使用的 Git commit；未提供时记录为 unknown",
     )
+    parser.add_argument(
+        "--onnx-filename",
+        default=DEFAULT_ONNX_FILENAME,
+        help="发布包中的权威 ONNX 文件名。",
+    )
+    parser.add_argument(
+        "--compatibility-alias",
+        default=None,
+        help="可选的字节级兼容 ONNX 别名。",
+    )
     args = parser.parse_args()
 
     run_dir = PROJECT_ROOT / "trained_models" / args.run_name
@@ -589,6 +670,8 @@ def main() -> None:
         model_version=args.model_version,
         data_diagnostics_path=args.data_diagnostics,
         training_commit=args.training_commit,
+        onnx_filename=args.onnx_filename,
+        compatibility_alias=args.compatibility_alias,
     )
 
     logger.info("WDF ONNX 发布包生成完成")
