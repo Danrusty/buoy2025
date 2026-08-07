@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "run_name": "global_mlp_lat9_v1",
+  "created_at_utc": "2026-08-07T13:19:25.492728+00:00",
+  "training_code_git_commit": "e8b4ec4fcbbaa410800d3e1c17c93324f923905a",
+  "lineage": {
+    "shared_experiment": "global_factorial_v1",
+    "data_manifest": "trained_models/global_factorial_v1/data_manifest.json",
+    "data_manifest_sha256": "b683aa9f1bc484474db7fc26442000f73a5eef7b5b022e138587539aa63a0653",
+    "frozen_reference_replay": "trained_models/global_factorial_v1/frozen_global_replay.json",
+    "frozen_reference_replay_sha256": "784b1961974e7f982a41490f0d5b2148f7949ff43bfcb213b7f4b6f88c3c1fb5",
+    "longitude_cache_manifest": "trained_models/global_factorial_v1/longitude_cache_manifest.json",
+    "longitude_cache_manifest_sha256": "8cb6011a4b1abc01ffeb8a118e0f8abd27800887df3009b9f2f8af70555e19df"
+  },
+  "features": [
+    "era5_u10",
+    "era5_v10",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos",
+    "sin_latitude",
+    "sin_longitude",
+    "cos_longitude"
+  ],
+  "coordinate_formulas": {
+    "sin_latitude": "sin(deg2rad(latitude))",
+    "sin_longitude": "sin(deg2rad(longitude))",
+    "cos_longitude": "cos(deg2rad(longitude))"
+  },
+  "unique_experiment_variable": "在 frozen lat7 后追加 sin(longitude)、cos(longitude) 为第 8、9 维",
+  "targets": {
+    "residual_u": "ve - cfsv2_u",
+    "residual_v": "vn - cfsv2_v"
+  },
+  "artifacts": {
+    "checkpoint": {
+      "path": "trained_models/global_mlp_lat9_v1/best_mlp.pth",
+      "sha256": "aa63f461732ba83de2431b9f159fd37a48f98d4d2c136902acbf6479f87188b7"
+    },
+    "scaler": {
+      "path": "trained_models/global_mlp_lat9_v1/x_scaler.pkl",
+      "sha256": "134f164062befaf373cec0f2684cdb0a7969fda0f88308f484f49603baee7613",
+      "mean": [
+        -0.5929821762779722,
+        0.10755626118182826,
+        2.4452405890492797,
+        8.878838666692591,
+        -0.07113936644587779,
+        -0.15388750906817056,
+        0.029280636515355712,
+        -0.22038178355997995,
+        0.08415009340544743
+      ],
+      "scale": [
+        5.905031423755503,
+        5.120804312940217,
+        1.0961271231334728,
+        1.708236431405307,
+        0.7107380997460813,
+        0.6827218896902633,
+        0.550307614208241,
+        0.6413759438676425,
+        0.7300599495170101
+      ],
+      "n_samples_seen": 11694073
+    },
+    "metrics": {
+      "path": "trained_models/global_mlp_lat9_v1/metrics.json",
+      "sha256": "f4c3b5d3dfed514b5e74fb74d636d21086aa0cd191b77926fe12f8a19c1ca879"
+    },
+    "fixed_test_io": {
+      "path": "trained_models/global_mlp_lat9_v1/fixed_test_io.json",
+      "sha256": "d71771050ebaab03deb0076fcaae1e739c96f6de51986bfed1995551b3d72c9d"
+    },
+    "prediction_cache": {
+      "path": "processed_data/global_factorial_v1/mlp_lat9_test_pred.npy",
+      "shape": [
+        2425415,
+        2
+      ],
+      "dtype": "float32",
+      "sha256": "4194912b9992ae35ebd41693afb06a9164436fef13821da8a2bc4b36fcbc16da"
+    }
+  },
+  "software": {
+    "numpy": "2.4.0",
+    "scikit_learn": "1.8.0",
+    "torch": "2.5.1",
+    "cuda": "12.4",
+    "device": "cuda"
+  },
+  "log_path": "logs/global_mlp_lat9_v1_20260807_211737.log"
+}
