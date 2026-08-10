@@ -1,6 +1,6 @@
 # 论文诊断实验分支与提交来源
 
-更新时间：2026-08-08
+更新时间：2026-08-10
 
 ## 1. 记录目的
 
@@ -12,15 +12,19 @@
 ## 2. 工程基线
 
 - 冻结部署模型谱系：`master@f2a01709c8cac05f580341df70b477a633614aae`
-- 当前 `master`：在冻结部署谱系上增加论文 provenance 与只读评价，不改变模型
+- 当前 `master`：在冻结部署谱系上增加论文 provenance、共用评价
+  与一项隔离的 wind-only 严格消融，不改变 active model
 - 冻结归档 tag：`archive/wdf-core6-circular-mwd-v2`
 - 当前工程部署主模型：`wdf_core6_circular_mwd_v2`
 - 部署状态：Python、C++、Fortran 和 Windows 数值验证通过
 - 研究状态：工程接口继续冻结；后续模型只作为论文诊断证据，未替换 Windows
   Fortran 溢油模拟中的 global core6
 
-`master` 只维护稳定工程基线、部署模型、论文 provenance 和不改模型的共用评价。
-互斥训练代码、失败 release 和实验模型不整体合并回主线。
+`master` 维护稳定工程基线、部署模型、论文 provenance 和共用评价。
+2026-08-10 根据论文章节衔接需求，`master` 新增 wind-only 严格消融作为单一
+论文诊断例外；它使用独立产物目录，并明确冻结为
+`active_deployment_changed=false`。其他互斥训练代码、失败 release 和实验
+模型仍不整体合并回主线。
 
 ## 3. CMS 实验谱系
 
@@ -153,6 +157,54 @@ joint R² 为 `-0.000713`，虽然 validation 提高，但没有形成独立 tes
 - `paper/global-xgb-lat7-v1:results/global_factorial_v1/README.md`
 - `paper/global-xgb-lat7-v1:results/global_factorial_v1/comparison.json`
 
+### 4.2 Wind-only 波浪输入严格消融
+
+| 角色 | 准确提交 | Evidence tag | 当前状态 |
+|---|---|---|---|
+| 实验代码 | `0fa4030b0515079c2c4275c898cb6b3f15bc8820` | 由结果 tag 交叉引用 | frozen training code |
+| 正式结果 | `dca1fd55a68b3aacab090eae790f13ca06647e3a` | `paper/wind-only-ablation-v1` | frozen diagnostic |
+
+wind-only MLP 只输入 `era5_u10/era5_v10`；对照 core6 输入风速两分量及
+`era5_swh`、`era5_mwp`、`era5_wave_dir_sin/cos`。wind-only 仍使用 core6
+六特征有效行掩码。清单校验确认两者的 `original_ID`、子轨迹、逐行样本、
+target 和 seed 全部一致：train/validation/test 分别为
+`11,694,073 / 2,614,863 / 2,425,415` 行和 `1707 / 366 / 366` 个 ID。
+共同线性基准重放的最大绝对差为零。
+
+| 模型 | test joint R² | RMSE (m/s) | MAE (m/s) |
+|---|---:|---:|---:|
+| 共同线性 WDF | 0.122317 | 0.195250 | 0.143718 |
+| Wind-only MLP | 0.123691 | 0.195094 | 0.143574 |
+| Wind+wave core6 MLP | 0.127398 | 0.194682 | 0.143305 |
+
+core6 相对 wind-only 的 joint R² 增加 `0.003707`，RMSE 降低
+`0.000412 m/s`（`0.211%`）。该结果的绝对幅度较小，表明风场承担了
+水平残差速度的主要可预测信息。以共同线性 WDF 为参照，core6 的
+joint R² 总增量为 `0.005081`，wind-only 的非线性增量为 `0.001374`；
+加入波浪后的额外增量占 core6 相对线性基准总差值的 `73.0%`。
+
+同一 held-out test 上的水平位移误差代理为：
+
+| 时长 | Wind-only (km) | Core6 (km) | Core6 改善率 | 配对 95% CI |
+|---:|---:|---:|---:|---:|
+| 6 h | 4.365 | 4.355 | 0.229% | [-0.084%, 0.543%] |
+| 12 h | 7.976 | 7.963 | 0.159% | [-0.231%, 0.531%] |
+| 24 h | 14.761 | 14.723 | 0.257% | [-0.256%, 0.741%] |
+| 48 h | 27.883 | 27.729 | 0.552% | [0.073%, 1.018%] |
+| 72 h | 39.831 | 39.653 | 0.448% | [-0.026%, 0.924%] |
+
+五个时长的点估计均支持 core6，48 h 的配对区间下界高于零。该结果为
+波浪增量信息在中期水平时间积分中的可识别性提供了独立证据。
+其他时长的区间覆盖零，因而该证据定位为幅度较小、具有时长依赖性的
+水平过程信号。
+
+主要证据位置：
+
+- `results/wind_only_ablation_circular_mwd_v2/README.md`
+- `results/wind_only_ablation_circular_mwd_v2/comparison.json`
+- `results/wind_only_ablation_circular_mwd_v2/trajectory_proxy.json`
+- `trained_models/wind_only_ablation_circular_mwd_v2/wind_2/run_manifest.json`
+
 ## 5. Held-out drifter 多时长位移误差代理
 
 分析代码固定于 `master@ce52512`，没有训练或修改模型。它严格重放 frozen
@@ -199,6 +251,8 @@ global held-out test 的 366 个 `original_ID`、646 个源片段和 2,425,415 �
 才能作严格数值排名。
 
 - Global A/B/C/D/E 使用完全相同的 test 行，可以严格比较。
+- Wind-only/core6 消融共享 core6 有效行掩码与全部 test 行，可以严格
+  解释为移除四项波浪输入后的性能变化。
 - CMS 原始网络、CMS 网络重设计和 frozen global 的 CMS 子集评价使用同一批
   4-ID CMS test 行，可以在该区域内直接比较。
 - 两轮 adapter 的 development/gate 数量与区域不同；它们回答“校正是否通过
@@ -211,7 +265,7 @@ global held-out test 的 366 个 `original_ID`、646 个源片段和 2,425,415 �
 
 ## 7. 分支与归档规则
 
-截至 2026-08-07，以下远端分支保留用于论文写作：
+截至 2026-08-10，以下远端分支保留用于论文写作：
 
 - `wdf_cms_regional_core6_v1@3365743`
 - `wdf_global_mlp_lat7_v1@21f8c85`
@@ -221,6 +275,9 @@ global held-out test 的 366 个 `original_ID`、646 个源片段和 2,425,415 �
 `wdf_cms_range_search_v1` 和 `wdf_cms_network_redesign_v1` 已在远端 annotated
 tags 验证后删除本地分支。它们的完整历史和产物分别由
 `paper/cms-range-search-v1` 与 `paper/cms-network-redesign-v1` 保留。
+
+`master` 上的 wind-only 消融不新建分支，正式结果由
+`paper/wind-only-ablation-v1` 标记，且没有更改 active release。
 
 处理规则：
 
@@ -242,8 +299,17 @@ core6 circular-MWD v2 仍是 Windows Fortran 案例中的部署主模型。XGBoo
 - 缩小到 CMS 或扩大到东亚–西北太平洋后，网络重设计或低阶校正是否改善迁移；
 - 当前性能上限是否能归因于单一网络结构，而非目标定义、数据支持、对象差异或
   背景流误差。
+- 波浪变量在以风场为主的水平残差速度参数化中能否提供可识别的
+  增量信息。
 
 现有证据的共同结论是：纬度和局部网络重设计能带来小幅、局部改善，但简单经度
 编码、XGBoost 模型替换和低阶 regional adapter 都没有形成足够稳定的独立测试
 增益。工程部署主线因此保持冻结，论文将这些正负结果作为诊断链，而不是把每个
 实验分支解释为候选 release。
+
+章节衔接使用两层证据。第一层明确记录波浪输入的绝对预测增益较小，
+风场包含了水平残差速度的主要可预测信息。第二层强调波浪输入占 core6
+相对线性 WDF 的 joint R² 总增量约 `73%`，并在 48 h 水平位移误差代理上
+得到下界高于零的配对区间。这两层结果用于建立“波浪对沉潜油垂向过程
+重要—波浪变量对水平残差速度提供小幅增量信息—风浪结合参数化用于
+溢油案例”的论文叙事链。
