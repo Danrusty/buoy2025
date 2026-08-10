@@ -238,6 +238,13 @@ def build_offline_comparison(
 
     wind = wind_metrics["test"]
     core = frozen_metrics["test"]
+    linear = frozen_metrics["linear_baseline_test"]
+    core_r2_gain_vs_linear = float(
+        core["r2_joint"] - linear["r2_joint"]
+    )
+    core_rmse_reduction_vs_linear = float(
+        linear["rmse"] - core["rmse"]
+    )
     delta = {
         "core6_minus_wind_only_r2_u": float(core["r2_u"] - wind["r2_u"]),
         "core6_minus_wind_only_r2_v": float(core["r2_v"] - wind["r2_v"]),
@@ -256,6 +263,24 @@ def build_offline_comparison(
         "core6_mae_reduction_vs_wind_only_percent": float(
             (wind["mae"] - core["mae"]) / wind["mae"] * 100.0
         ),
+        "wind_only_minus_linear_r2_joint": float(
+            wind["r2_joint"] - linear["r2_joint"]
+        ),
+        "core6_minus_linear_r2_joint": core_r2_gain_vs_linear,
+        "wave_input_share_of_core6_r2_gain_vs_linear_percent": float(
+            (core["r2_joint"] - wind["r2_joint"])
+            / core_r2_gain_vs_linear
+            * 100.0
+        ),
+        "linear_minus_wind_only_rmse_m_s": float(
+            linear["rmse"] - wind["rmse"]
+        ),
+        "linear_minus_core6_rmse_m_s": core_rmse_reduction_vs_linear,
+        "wave_input_share_of_core6_rmse_reduction_vs_linear_percent": float(
+            (wind["rmse"] - core["rmse"])
+            / core_rmse_reduction_vs_linear
+            * 100.0
+        ),
     }
     return {
         "schema_version": 1,
@@ -273,6 +298,7 @@ def build_offline_comparison(
         },
         "split_validation": dict(split_validation),
         "linear_baseline_replay_max_absolute_difference": linear_difference,
+        "common_linear_baseline": dict(linear),
         "models": {
             WIND_ONLY_NAME: {
                 "parameter_count": wind_metrics["checkpoint"][
@@ -897,6 +923,12 @@ def write_readme(
         if significant_horizons
         else "所有时长的 95% 配对区间均覆盖零"
     )
+    horizontal_highlight = summaries["48"][
+        "comparisons_vs_wind_only_mlp"
+    ][CORE6_NAME]["median"]
+    horizontal_highlight_ci = horizontal_highlight["paired_bootstrap"][
+        "relative_improvement_percent_ci95"
+    ]
 
     text = f"""# Wind-only 严格消融（circular-MWD v2）
 
@@ -920,6 +952,11 @@ train/validation/test 的 ID、子轨迹和逐行样本完全一致。
 `{gain['core6_minus_wind_only_r2_joint']:+.6f}`，RMSE 变化
 `{-gain['wind_only_minus_core6_rmse_m_s']:+.6f} m/s`（相对 wind-only 的降低幅度
 `{gain['core6_rmse_reduction_vs_wind_only_percent']:+.3f}%`）。
+以共同线性 WDF 为参照，core6 的 joint R² 总增量为
+`{gain['core6_minus_linear_r2_joint']:+.6f}`，其中 wind-only MLP 的非线性增量为
+`{gain['wind_only_minus_linear_r2_joint']:+.6f}`，加入波浪后的额外增量占 core6
+相对线性基准总差值的
+`{gain['wave_input_share_of_core6_r2_gain_vs_linear_percent']:.1f}%`。
 
 ## 多时长水平位移误差代理
 
@@ -933,6 +970,10 @@ bootstrap 给出。
 
 {direction_text}；{significance_text}。该结果与逐时指标共同用于判断
 波浪输入是否增加了可识别的水平残差速度信息。
+48 h 窗口的改善率为
+{horizontal_highlight['equal_id_relative_improvement_percent']:.3f}%，配对 95% CI 为
+[{horizontal_highlight_ci[0]:.3f}%, {horizontal_highlight_ci[1]:.3f}%]，表明波浪增量信息在中期水平时间积分中仍可识别。
+其他时长的区间覆盖零，界定了该水平证据的统计范围。
 
 ## 解释边界
 

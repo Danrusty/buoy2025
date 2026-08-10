@@ -1,0 +1,27 @@
+{
+  "checkpoint": {
+    "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/best_mlp.pth",
+    "best_epoch": 57,
+    "validation_loss": 0.03818252184321106,
+    "validation_r2_joint": 0.12467341080971261,
+    "parameter_count": 431490
+  },
+  "test": {
+    "r2_u": 0.1239835990566831,
+    "r2_v": 0.12339825286058093,
+    "r2_joint": 0.12369092595863201,
+    "rmse": 0.19509429363926298,
+    "mae": 0.143574365596886
+  },
+  "linear_baseline_test": {
+    "r2_u": 0.12154202992486851,
+    "r2_v": 0.12309173729332534,
+    "r2_joint": 0.12231688360909693,
+    "rmse": 0.19525023742205133,
+    "mae": 0.14371787708735873
+  },
+  "mlp_vs_linear": {
+    "rmse_improvement_percent": 0.07986867767605671,
+    "r2_joint_difference": 0.0013740423495350873
+  }
+}

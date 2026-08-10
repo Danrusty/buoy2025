@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "study": "wind_only_ablation_circular_mwd_v2",
+  "created_at_utc": "2026-08-10T13:57:36.807053+00:00",
+  "training_code_git_commit": "0fa4030b0515079c2c4275c898cb6b3f15bc8820",
+  "experimental_factor": "wave inputs included (core6) versus removed (wind-only); all sample, target, split, seed, architecture body, optimizer, scheduler and early-stopping settings held fixed",
+  "feature_sets": {
+    "wind_only_mlp": [
+      "era5_u10",
+      "era5_v10"
+    ],
+    "frozen_core6_mlp": [
+      "era5_u10",
+      "era5_v10",
+      "era5_swh",
+      "era5_mwp",
+      "era5_wave_dir_sin",
+      "era5_wave_dir_cos"
+    ]
+  },
+  "split_validation": {
+    "status": "passed",
+    "identical_original_ids": true,
+    "identical_segments": true,
+    "identical_rows": true,
+    "identical_target_definition": true,
+    "splits": {
+      "train": {
+        "n_original_ids": 1707,
+        "n_segments": 2900,
+        "n_samples": 11694073
+      },
+      "val": {
+        "n_original_ids": 366,
+        "n_segments": 595,
+        "n_samples": 2614863
+      },
+      "test": {
+        "n_original_ids": 366,
+        "n_segments": 646,
+        "n_samples": 2425415
+      }
+    }
+  },
+  "linear_baseline_replay_max_absolute_difference": 0.0,
+  "common_linear_baseline": {
+    "r2_u": 0.12154202992486851,
+    "r2_v": 0.12309173729332534,
+    "r2_joint": 0.12231688360909693,
+    "rmse": 0.19525023742205133,
+    "mae": 0.14371787708735873
+  },
+  "models": {
+    "wind_only_mlp": {
+      "parameter_count": 431490,
+      "best_epoch": 57,
+      "validation_loss": 0.03818252184321106,
+      "validation_r2_joint": 0.12467341080971261,
+      "test": {
+        "r2_u": 0.1239835990566831,
+        "r2_v": 0.12339825286058093,
+        "r2_joint": 0.12369092595863201,
+        "rmse": 0.19509429363926298,
+        "mae": 0.143574365596886
+      }
+    },
+    "frozen_core6_mlp": {
+      "parameter_count": 433538,
+      "best_epoch": 12,
+      "validation_loss": 0.03801552007388424,
+      "validation_r2_joint": 0.12850630839880717,
+      "test": {
+        "r2_u": 0.12734533902056788,
+        "r2_v": 0.1274503641836796,
+        "r2_joint": 0.12739785160212375,
+        "rmse": 0.19468220192490404,
+        "mae": 0.1433051275918311
+      }
+    }
+  },
+  "wave_input_gain": {
+    "core6_minus_wind_only_r2_u": 0.00336173996388478,
+    "core6_minus_wind_only_r2_v": 0.004052111323098684,
+    "core6_minus_wind_only_r2_joint": 0.003706925643491732,
+    "wind_only_minus_core6_rmse_m_s": 0.00041209171435893643,
+    "wind_only_minus_core6_mae_m_s": 0.0002692380050549059,
+    "core6_rmse_reduction_vs_wind_only_percent": 0.2112269439929956,
+    "core6_mae_reduction_vs_wind_only_percent": 0.187525122563206,
+    "wind_only_minus_linear_r2_joint": 0.0013740423495350873,
+    "core6_minus_linear_r2_joint": 0.005080967993026819,
+    "wave_input_share_of_core6_r2_gain_vs_linear_percent": 72.95707527737156,
+    "linear_minus_wind_only_rmse_m_s": 0.00015594378278835364,
+    "linear_minus_core6_rmse_m_s": 0.0005680354971472901,
+    "wave_input_share_of_core6_rmse_reduction_vs_linear_percent": 72.54682434962021
+  }
+}

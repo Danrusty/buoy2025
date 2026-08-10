@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "study": "wind_only_ablation_circular_mwd_v2",
+  "status": "frozen_diagnostic",
+  "created_at_utc": "2026-08-10T13:57:37.010992+00:00",
+  "training_code_git_commit": "0fa4030b0515079c2c4275c898cb6b3f15bc8820",
+  "source": {
+    "path": "processed_data/trajectories_with_all_features_circular_mwd_v2.pkl",
+    "size_bytes": 2427317095,
+    "sha256": "22ab0a32ff9472a6f8b8f57af5fd96b93cdeb76d45b4ef6b0a798fa1befb937e"
+  },
+  "features": [
+    "era5_u10",
+    "era5_v10"
+  ],
+  "row_validity_feature_columns": [
+    "era5_u10",
+    "era5_v10",
+    "era5_swh",
+    "era5_mwp",
+    "era5_wave_dir_sin",
+    "era5_wave_dir_cos"
+  ],
+  "split_group": "original_ID",
+  "random_seed": 42,
+  "active_deployment_changed": false,
+  "artifacts": {
+    "best_mlp.pth": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/best_mlp.pth",
+      "sha256": "7b59c23653da8e876bb559ad6a130a5b066bc19eadc57f6f0a6a50a9da492c90"
+    },
+    "x_scaler.pkl": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/x_scaler.pkl",
+      "sha256": "91238b2db05aa75bb4429c8d2f25cd6b43e9f28321f7887f82d47f031d58a835"
+    },
+    "split_manifest.json": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/split_manifest.json",
+      "sha256": "7f5a1e2eaf7ae72d961c58fc650e5499b78a1c3f740377eb43dbf580272fc9b5"
+    },
+    "model_config.json": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/model_config.json",
+      "sha256": "b320b415db2e6c6d4f1aad1671baa8cfeef35baa906f575c44e000b6684348fa"
+    },
+    "mlp_metrics.json": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/mlp_metrics.json",
+      "sha256": "10b216bbcdc71a0b60ce945d6fe2f06fac85cc10ee62a91b09abe6dc41e8917e"
+    },
+    "linear_baseline.joblib": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/linear_baseline.joblib",
+      "sha256": "1432e83d5aa4721b0c968cb1900ec9a86391308727ee7f18cb9a5269af970786"
+    },
+    "linear_baseline_metrics.json": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/linear_baseline_metrics.json",
+      "sha256": "a808a80b3004f72972388b8ecba82c0e0d6d525a942146bcbb3aa3212b2950fb"
+    },
+    "training_history.json": {
+      "path": "trained_models/wind_only_ablation_circular_mwd_v2/wind_2/training_history.json",
+      "sha256": "e994e8300464c1bd1748b796065697646a405adb41c1675c603d730f7d0fbb3b"
+    }
+  }
+}
