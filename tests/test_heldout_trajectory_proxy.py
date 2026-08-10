@@ -158,6 +158,33 @@ class EqualIdAggregationTest(unittest.TestCase):
             0.0,
         )
 
+    def test_non_linear_baseline_is_named_without_semantic_aliasing(self) -> None:
+        groups = np.asarray([0, 0, 1, 1], dtype=np.int32)
+        endpoint = {
+            "wind_only_mlp": np.asarray([2.0, 2.0, 4.0, 4.0]),
+            "frozen_core6_mlp": np.asarray([1.0, 1.0, 3.0, 3.0]),
+        }
+        summary = summarize_horizon(
+            6,
+            groups,
+            endpoint,
+            ["a", "b"],
+            bootstrap_replicates=100,
+            seed=48,
+            baseline_name="wind_only_mlp",
+        )
+        comparison = summary["comparisons_vs_wind_only_mlp"][
+            "frozen_core6_mlp"
+        ]["median"]
+        self.assertIn(
+            "equal_id_delta_candidate_minus_wind_only_mlp_km",
+            comparison,
+        )
+        self.assertIn(
+            "delta_candidate_minus_wind_only_mlp_km_ci95",
+            comparison["paired_bootstrap"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,6 +5,7 @@
   1. 使用 original_ID 切分，属于同一物理浮标的全部子轨迹只能进入同一集合。
   2. StandardScaler 只在训练集上拟合。
   3. 保存 split manifest 和 scaler，保证训练、评估与部署可追溯。
+  4. 消融实验可独立指定有效行特征集，以便在减少输入时保持样本不变。
 """
 
 from __future__ import annotations
@@ -144,6 +145,7 @@ def _write_manifest(
     filepath: Path,
     random_seed: int,
     feature_cols: list[str],
+    row_validity_feature_cols: list[str],
     id_splits: dict[str, list[str]],
     split_stats: dict[str, dict[str, int]],
     sample_mode: bool,
@@ -166,6 +168,7 @@ def _write_manifest(
         },
         "sample_mode": sample_mode,
         "feature_columns": feature_cols,
+        "row_validity_feature_columns": row_validity_feature_cols,
         "target_columns": TARGET_COLS,
         "splits": {
             name: {
@@ -189,11 +192,14 @@ def load_and_split_data(
     artifact_dir: str | Path | None = None,
     save_artifacts: bool = True,
     feature_cols: list[str] | tuple[str, ...] | None = None,
+    row_validity_feature_cols: list[str] | tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     """
     加载数据，按 original_ID 切分，计算目标并标准化特征。
 
     sample_mode 下的 sample_size 表示抽取的物理浮标 ID 数，而不是子轨迹数。
+    row_validity_feature_cols 可以比实际模型输入更宽，用于在对照
+    模型间锁定完全一致的有效行。
     """
     selected_features = list(feature_cols or FEATURE_COLS)
     if not selected_features:
@@ -203,6 +209,30 @@ def load_and_split_data(
     unknown_features = set(selected_features) - set(FEATURE_COLS)
     if unknown_features:
         raise ValueError(f"未知特征: {sorted(unknown_features)}")
+
+    validity_features = list(
+        row_validity_feature_cols
+        if row_validity_feature_cols is not None
+        else selected_features
+    )
+    if not validity_features:
+        raise ValueError("row_validity_feature_cols 不能为空。")
+    if len(validity_features) != len(set(validity_features)):
+        raise ValueError(
+            "row_validity_feature_cols 包含重复项: "
+            f"{validity_features}"
+        )
+    unknown_validity_features = set(validity_features) - set(FEATURE_COLS)
+    if unknown_validity_features:
+        raise ValueError(
+            "row_validity_feature_cols 包含未知特征: "
+            f"{sorted(unknown_validity_features)}"
+        )
+    if not set(selected_features).issubset(validity_features):
+        raise ValueError(
+            "输入特征必须包含在 row_validity_feature_cols 中，"
+            "以避免输入列绕过有效行筛选。"
+        )
 
     filepath = Path(filepath).resolve()
     artifact_dir = Path(
@@ -261,7 +291,9 @@ def load_and_split_data(
 
     logger.info("步骤 2/4: 过滤无效子轨迹并计算漂移残差...")
     model_input_cols = list(
-        dict.fromkeys(selected_features + WIND_COLS + OBS_COLS + CURRENT_COLS)
+        dict.fromkeys(
+            validity_features + WIND_COLS + OBS_COLS + CURRENT_COLS
+        )
     )
     required_cols = set(model_input_cols + [GROUP_COL])
     valid_trajs: list[tuple[str, pd.DataFrame]] = []
@@ -378,6 +410,7 @@ def load_and_split_data(
             filepath,
             random_seed,
             selected_features,
+            validity_features,
             id_splits,
             split_stats,
             sample_mode,
@@ -402,6 +435,7 @@ def load_and_split_data(
         **arrays,
         "x_scaler": x_scaler,
         "feature_cols": selected_features,
+        "row_validity_feature_cols": validity_features,
         "target_cols": TARGET_COLS.copy(),
         "id_splits": id_splits,
         "split_stats": split_stats,

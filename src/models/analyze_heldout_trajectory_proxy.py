@@ -628,6 +628,7 @@ def paired_id_bootstrap(
     seed: int,
     replicates: int,
     batch_size: int = 500,
+    baseline_name: str = "linear",
 ) -> dict[str, Any]:
     """以 original_ID 为抽样单元计算配对均值差和改善率区间。"""
 
@@ -660,12 +661,14 @@ def paired_id_bootstrap(
         improvement_samples,
         [0.025, 0.975],
     )
+    if not baseline_name or not baseline_name.replace("_", "").isalnum():
+        raise ValueError("baseline_name 只能包含字母、数字和下划线。")
     return {
         "sampling_unit": "original_ID",
         "paired": True,
         "random_seed": seed,
         "replicates": replicates,
-        "delta_candidate_minus_linear_km_ci95": [
+        f"delta_candidate_minus_{baseline_name}_km_ci95": [
             float(delta_ci[0]),
             float(delta_ci[1]),
         ],
@@ -684,8 +687,9 @@ def summarize_horizon(
     *,
     bootstrap_replicates: int,
     seed: int,
+    baseline_name: str = "linear",
 ) -> dict[str, Any]:
-    """按 ID 等权汇总单个时长，并生成相对 Linear 的配对比较。"""
+    """按 ID 等权汇总单个时长，并生成相对指定基准的配对比较。"""
 
     groups = np.asarray(group_indices, dtype=np.int32)
     if len(groups) == 0:
@@ -695,8 +699,8 @@ def summarize_horizon(
             raise ValueError(
                 f"{horizon} h {name} endpoint 数量与窗口 ID 不一致。"
             )
-    if "linear" not in endpoint_errors:
-        raise ValueError("endpoint_errors 缺少 linear。")
+    if baseline_name not in endpoint_errors:
+        raise ValueError(f"endpoint_errors 缺少基准 {baseline_name}。")
 
     present = np.unique(groups)
     per_id = []
@@ -745,20 +749,20 @@ def summarize_horizon(
         }
 
     comparisons = {}
-    baseline_windows = np.asarray(endpoint_errors["linear"])
+    baseline_windows = np.asarray(endpoint_errors[baseline_name])
     for candidate_name, candidate_windows in endpoint_errors.items():
-        if candidate_name == "linear":
+        if candidate_name == baseline_name:
             continue
         comparison: dict[str, Any] = {}
         for statistic in ("median", "p90"):
-            baseline = arrays["linear"][statistic]
+            baseline = arrays[baseline_name][statistic]
             candidate = arrays[candidate_name][statistic]
             delta = candidate - baseline
             ties = np.isclose(delta, 0.0, rtol=0.0, atol=1e-12)
             base_mean = float(baseline.mean())
             candidate_mean = float(candidate.mean())
             comparison[statistic] = {
-                "equal_id_delta_candidate_minus_linear_km": (
+                f"equal_id_delta_candidate_minus_{baseline_name}_km": (
                     candidate_mean - base_mean
                 ),
                 "equal_id_relative_improvement_percent": (
@@ -773,6 +777,7 @@ def summarize_horizon(
                     candidate,
                     seed=seed,
                     replicates=bootstrap_replicates,
+                    baseline_name=baseline_name,
                 ),
             }
         candidate_windows = np.asarray(candidate_windows)
@@ -801,7 +806,7 @@ def summarize_horizon(
         "n_windows": len(groups),
         "n_original_ids": len(present),
         "models": models,
-        "comparisons_vs_linear": comparisons,
+        f"comparisons_vs_{baseline_name}": comparisons,
         "per_id": per_id,
     }
 

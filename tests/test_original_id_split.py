@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pickle
+import json
 import sys
 import tempfile
 import unittest
@@ -102,6 +103,46 @@ class OriginalIdSplitTest(unittest.TestCase):
             self.assertEqual(core_splits["X_train"].shape[1], 6)
             self.assertEqual(core_splits["feature_cols"], CORE_FEATURES)
             self.assertEqual(core_splits["id_splits"], splits["id_splits"])
+
+    def test_wind_only_can_inherit_core6_row_validity_mask(self) -> None:
+        trajectories = [
+            _trajectory(f"buoy-{index:02d}", float(index))
+            for index in range(20)
+        ]
+        # 这一行风速和 target 有效，但波高缺测；严格消融必须将其剔除。
+        trajectories[0].loc[0, "era5_swh"] = np.nan
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            data_path = temp_path / "trajectories.pkl"
+            with data_path.open("wb") as file:
+                pickle.dump(trajectories, file)
+
+            core = load_and_split_data(
+                filepath=data_path,
+                artifact_dir=temp_path / "core",
+                feature_cols=CORE_FEATURES,
+            )
+            wind = load_and_split_data(
+                filepath=data_path,
+                artifact_dir=temp_path / "wind",
+                feature_cols=CORE_FEATURES[:2],
+                row_validity_feature_cols=CORE_FEATURES,
+            )
+
+            self.assertEqual(core["id_splits"], wind["id_splits"])
+            self.assertEqual(core["split_stats"], wind["split_stats"])
+            self.assertEqual(wind["X_train"].shape[1], 2)
+            manifest = json.loads(
+                (temp_path / "wind" / "split_manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(manifest["feature_columns"], CORE_FEATURES[:2])
+            self.assertEqual(
+                manifest["row_validity_feature_columns"],
+                CORE_FEATURES,
+            )
 
 
 if __name__ == "__main__":
